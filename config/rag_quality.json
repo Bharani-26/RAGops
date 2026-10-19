@@ -1,0 +1,19 @@
+{
+  "description": "Initial quality-gate configuration. Thresholds remain disabled until a reviewed non-sample baseline is available.",
+  "dataset_id": "ragops_sample",
+  "dataset_version": "1.0.0",
+  "sample_dataset": true,
+  "minimum_scores": {
+    "retrieval_relevance": null,
+    "faithfulness": null,
+    "answer_correctness": null,
+    "citation_accuracy": null
+  },
+  "maximum_regression": {
+    "retrieval_relevance": null,
+    "faithfulness": null,
+    "answer_correctness": null,
+    "citation_accuracy": null
+  },
+  "baseline": null
+}

@@ -1,0 +1,17 @@
+{
+  "dataset_id": "ragops_sample",
+  "version": "1.0.0",
+  "name": "RAGOps Development Sample",
+  "description": "Clearly labeled development-only evaluation cases. Results are not production quality claims.",
+  "sample": true,
+  "cases": [
+    {
+      "id": "sample-001",
+      "question": "What storage system does RAGOps use for vectors?",
+      "expected_answer": "RAGOps uses persistent ChromaDB storage for vectors.",
+      "reference_context": "RAGOps stores vectors in a persistent ChromaDB collection.",
+      "expected_source": "README.md",
+      "tags": ["sample", "storage"]
+    }
+  ]
+}

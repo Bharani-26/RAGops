@@ -1,0 +1,35 @@
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Byte-compiled / optimized / Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest / Test Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local persistent data directory
+data/*
+*.db
+*.sqlite3
+
+# Versioned evaluation fixtures; runtime data remains ignored.
+!data/evaluation/
+data/evaluation/*
+!data/evaluation/dataset.json
+
+# Frontend build & dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.env

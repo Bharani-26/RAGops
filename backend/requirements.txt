@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+python-dotenv
+pytest
+httpx
+pypdf
+langchain
+langchain-core
+langchain-google-genai
+langchain-chroma
+langchain-text-splitters
+chromadb
+pydantic-settings
+python-multipart
+sqlalchemy
+greenlet

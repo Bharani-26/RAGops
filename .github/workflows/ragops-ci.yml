@@ -1,0 +1,62 @@
+name: RAGOps CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-and-quality:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PYTHONPATH: .
+      PYTHONHASHSEED: "0"
+      GOOGLE_API_KEY: ""
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: python -m pip install -r backend/requirements.txt
+
+      - name: Validate evaluation dataset and quality configuration
+        run: python scripts/quality_gate.py --config config/rag_quality.json --dataset data/evaluation/dataset.json
+
+      - name: Run backend tests and deterministic evaluation tests
+        run: python -m pytest -q
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish CI result
+        if: always()
+        run: |
+          {
+            echo "## CI checks"
+            echo ""
+            echo "- Backend tests and deterministic evaluation tests: see preceding step"
+            echo "- Dataset validation: `data/evaluation/dataset.json`"
+            echo "- Quality thresholds: configured in `config/rag_quality.json`"
+            echo "- Live Gemini evaluation: not run; no API key is required for ordinary CI"
+          } >> "$GITHUB_STEP_SUMMARY"
