@@ -16,10 +16,6 @@ jobs:
       PYTHONPATH: .
       PYTHONHASHSEED: "0"
       GOOGLE_API_KEY: ""
-      RAGOPS_DATA_DIR: ${{ runner.temp }}/ragops-data
-      RAGOPS_UPLOAD_DIR: ${{ runner.temp }}/ragops-data/uploads
-      RAGOPS_CHROMA_PERSIST_DIR: ${{ runner.temp }}/ragops-data/chroma
-      RAGOPS_SQLITE_DB_PATH: ${{ runner.temp }}/ragops-data/ragops.db
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -36,7 +32,11 @@ jobs:
 
       - name: Prepare isolated test storage
         run: |
-          mkdir -p "$RAGOPS_UPLOAD_DIR" "$RAGOPS_CHROMA_PERSIST_DIR"
+          echo "RAGOPS_DATA_DIR=$RUNNER_TEMP/ragops-data" >> "$GITHUB_ENV"
+          echo "RAGOPS_UPLOAD_DIR=$RUNNER_TEMP/ragops-data/uploads" >> "$GITHUB_ENV"
+          echo "RAGOPS_CHROMA_PERSIST_DIR=$RUNNER_TEMP/ragops-data/chroma" >> "$GITHUB_ENV"
+          echo "RAGOPS_SQLITE_DB_PATH=$RUNNER_TEMP/ragops-data/ragops.db" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/ragops-data/uploads" "$RUNNER_TEMP/ragops-data/chroma"
 
       - name: Validate evaluation dataset and quality configuration
         run: python scripts/quality_gate.py --config config/rag_quality.json --dataset data/evaluation/dataset.json
