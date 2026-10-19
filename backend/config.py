@@ -32,10 +32,14 @@ class Settings(BaseSettings):
     )
     
     # Persistent Local Storage Paths
-    DATA_DIR: Path = BASE_DIR / "data"
-    UPLOAD_DIR: Path = BASE_DIR / "data" / "uploads"
-    CHROMA_PERSIST_DIR: Path = BASE_DIR / "data" / "chroma"
-    SQLITE_DB_PATH: Path = BASE_DIR / "data" / "ragops.db"
+    DATA_DIR: Path = Path(os.getenv("RAGOPS_DATA_DIR", str(BASE_DIR / "data")))
+    UPLOAD_DIR: Path = Path(os.getenv("RAGOPS_UPLOAD_DIR", str(DATA_DIR / "uploads")))
+    CHROMA_PERSIST_DIR: Path = Path(
+        os.getenv("RAGOPS_CHROMA_PERSIST_DIR", str(DATA_DIR / "chroma"))
+    )
+    SQLITE_DB_PATH: Path = Path(
+        os.getenv("RAGOPS_SQLITE_DB_PATH", str(DATA_DIR / "ragops.db"))
+    )
     CHROMA_COLLECTION_NAME: str = "ragops_documents"
     
     # Chunking configurations

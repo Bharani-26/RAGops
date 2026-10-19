@@ -146,6 +146,20 @@ requests targeting `main`, plus manual dispatch. It installs dependencies,
 validates the dataset, runs the offline pytest suite, and builds the frontend.
 It does not call Gemini or depend on local Chroma/SQLite data.
 
+CI sets `RAGOPS_DATA_DIR`, `RAGOPS_UPLOAD_DIR`, `RAGOPS_CHROMA_PERSIST_DIR`,
+and `RAGOPS_SQLITE_DB_PATH` to runner-temporary directories. To reproduce the
+same isolation locally in PowerShell:
+
+```powershell
+Set-Location D:\RAGops\ragops
+$env:RAGOPS_DATA_DIR = Join-Path $env:TEMP "ragops-ci-data"
+$env:RAGOPS_UPLOAD_DIR = Join-Path $env:RAGOPS_DATA_DIR "uploads"
+$env:RAGOPS_CHROMA_PERSIST_DIR = Join-Path $env:RAGOPS_DATA_DIR "chroma"
+$env:RAGOPS_SQLITE_DB_PATH = Join-Path $env:RAGOPS_DATA_DIR "ragops.db"
+New-Item -ItemType Directory -Force $env:RAGOPS_UPLOAD_DIR, $env:RAGOPS_CHROMA_PERSIST_DIR
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
 Quality policy is versioned in `config/rag_quality.json`. The checked-in
 configuration intentionally has no minimum thresholds and no baseline because
 the included dataset is a development sample. This means CI validates the

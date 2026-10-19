@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.quality_gate import evaluate_gate, validate_dataset
+from scripts.quality_gate import evaluate_gate, main, validate_dataset
 
 
 def test_quality_gate_passes_configured_thresholds():
@@ -69,3 +69,21 @@ def test_dataset_validation_rejects_invalid_structure(tmp_path: Path):
     }), encoding="utf-8")
     with pytest.raises(ValueError):
         validate_dataset(path)
+
+
+def test_quality_gate_reports_configuration_errors_as_infrastructure_failure(
+    tmp_path: Path, monkeypatch
+):
+    config = tmp_path / "config.json"
+    dataset = tmp_path / "dataset.json"
+    config.write_text("{", encoding="utf-8")
+    dataset.write_text(json.dumps({
+        "dataset_id": "valid",
+        "version": "1",
+        "cases": [{"id": "case-1", "question": "q", "expected_answer": "a"}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(
+        "sys.argv",
+        ["quality_gate.py", "--config", str(config), "--dataset", str(dataset)],
+    )
+    assert main() == 2
