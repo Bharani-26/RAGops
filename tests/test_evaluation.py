@@ -16,6 +16,7 @@ from backend.evaluation import (
 )
 from backend.evaluation_config import validate_quality_config
 from backend.run_eval import main as run_eval_main
+from backend.evaluation_corpus import corpus_status
 from backend.main import app
 from backend.config import settings
 from backend.database import EvaluationRun, SessionLocal
@@ -178,6 +179,19 @@ def test_unavailable_provider_is_explicit_and_persisted():
         assert stored is not None
         session.delete(stored)
         session.commit()
+
+
+def test_evaluation_corpus_is_separate_from_user_collection():
+    status = corpus_status()
+    assert status["collection"] != settings.CHROMA_COLLECTION_NAME
+    assert status["corpus_version"] == settings.EVALUATION_CORPUS_VERSION
+    assert status["document_count"] >= 3
+
+
+def test_evaluation_rejects_normal_user_collection(monkeypatch):
+    monkeypatch.setattr(settings, "EVALUATION_COLLECTION_NAME", settings.CHROMA_COLLECTION_NAME)
+    with pytest.raises(ValueError, match="normal user"):
+        corpus_status()
 
 
 def test_run_eval_reports_json_and_fails_enabled_unavailable_threshold(tmp_path, monkeypatch):

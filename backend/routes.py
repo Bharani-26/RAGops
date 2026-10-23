@@ -8,7 +8,7 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status, Qu
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from backend.config import settings
+from backend.config import BASE_DIR, settings
 from backend.ingestion import (
     validate_file,
     extract_pages_and_text,
@@ -50,6 +50,7 @@ from backend.evaluation import (
     run_evaluation,
     save_dataset,
 )
+from backend.evaluation_corpus import corpus_status
 
 logger = logging.getLogger("ragops.routes")
 router = APIRouter(prefix="/api/rag", tags=["RAG Pipeline"])
@@ -601,6 +602,12 @@ def _run_summary(run) -> dict:
         "metric_availability": scoring_config.get("metric_availability", {}),
         "threshold_status": scoring_config.get("threshold_status", "not_configured"),
         "threshold_failures": scoring_config.get("threshold_failures", []),
+        "corpus_version": getattr(run, "corpus_version", None),
+        "metric_availability": json.loads(getattr(run, "metric_availability_json", "{}") or "{}"),
+        "metric_eligibility": scoring_config.get("metric_eligibility", {}),
+        "retrieval_latency_p50_ms": getattr(run, "retrieval_latency_p50_ms", None),
+        "generation_latency_p50_ms": getattr(run, "generation_latency_p50_ms", None),
+        "provider_model": getattr(run, "provider_model", None),
         "error_message": run.error_message,
     }
 
@@ -608,6 +615,11 @@ def _run_summary(run) -> dict:
 @evaluation_router.get("/datasets")
 async def evaluation_datasets():
     return {"datasets": load_datasets()}
+
+
+@evaluation_router.get("/corpus")
+async def evaluation_corpus_status():
+    return corpus_status()
 
 
 @evaluation_router.post("/datasets")
@@ -632,7 +644,22 @@ async def execute_evaluation(request: EvaluationRunRequest):
     if dataset is None:
         raise HTTPException(status_code=404, detail="Evaluation dataset not found")
     try:
-        return run_evaluation(dataset, request.case_ids)
+        quality_config_path = BASE_DIR / "config" / "rag_quality.json"
+        quality_config = json.loads(quality_config_path.read_text(encoding="utf-8"))
+        from backend.evaluation_config import validate_quality_config
+        if quality_config.get("dataset_id") == dataset.get("dataset_id"):
+            validate_quality_config(quality_config, dataset)
+        else:
+            quality_config = {"minimum_scores": {}, "maximum_regression": {}, "baseline": None}
+        return run_evaluation(
+            dataset,
+            request.case_ids,
+            quality_config=quality_config,
+            collection_name=settings.EVALUATION_COLLECTION_NAME,
+            corpus_version=settings.EVALUATION_CORPUS_VERSION,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
         logger.exception("Evaluation run failed")
         raise HTTPException(status_code=500, detail="Evaluation run failed; check server logs.")

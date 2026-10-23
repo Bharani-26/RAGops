@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle2, Play, RefreshCw, ShieldCheck, Target, XCircle } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../services/api";
-import { EvaluationDataset, EvaluationRun, EvaluationRunDetail } from "../types/api";
+import { EvaluationCorpusStatus, EvaluationDataset, EvaluationRun, EvaluationRunDetail } from "../types/api";
 
 const score = (value: number | null | undefined) => value == null ? "Unavailable" : value.toFixed(2);
 
@@ -14,17 +14,20 @@ export const EvaluationsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [corpus, setCorpus] = useState<EvaluationCorpusStatus | null>(null);
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [nextDatasets, nextRuns] = await Promise.all([
+      const [nextDatasets, nextRuns, nextCorpus] = await Promise.all([
         api.getEvaluationDatasets(),
         api.getEvaluationRuns(),
+        api.getEvaluationCorpus(),
       ]);
       setDatasets(nextDatasets);
       setRuns(nextRuns);
+      setCorpus(nextCorpus);
       if (!selectedDataset && nextDatasets.length) {
         setSelectedDataset(`${nextDatasets[0].dataset_id}:${nextDatasets[0].version}`);
       }
@@ -84,6 +87,9 @@ export const EvaluationsPage: React.FC = () => {
 
       {error && <div className="rounded-lg border border-rose-900/60 bg-rose-950/30 p-4 text-sm text-rose-300">{error}</div>}
       {activeDataset?.sample && <div className="rounded-lg border border-amber-900/50 bg-amber-950/20 p-3 text-xs text-amber-300">Sample dataset: development-only cases. Results must not be treated as production evaluation results.</div>}
+      {corpus && <div className="rounded-lg border border-slate-800 bg-[#0f172a] p-4 text-xs text-slate-400">
+        Evaluation corpus <span className="text-slate-200">{corpus.corpus_version}</span> · isolated collection <span className="text-slate-200">{corpus.collection}</span> · {corpus.document_count} documents · {corpus.chunk_count} indexed chunks
+      </div>}
 
       {detail && (
         <>
@@ -94,15 +100,15 @@ export const EvaluationsPage: React.FC = () => {
             <Metric label="Citation accuracy" value={detail.avg_citation_precision} icon={<Target className="h-4 w-4 text-amber-400" />} />
           </div>
           <div className="rounded-xl border border-slate-800 bg-[#0f172a] p-5 text-xs text-slate-400">
-            Run status: <span className="text-slate-200">{detail.status}</span> · {detail.completed_samples} completed · {detail.failed_samples} failed · threshold status: <span className="text-slate-200">{detail.threshold_status || "not_configured"}</span> · dataset v{detail.dataset_version} · {detail.timestamp ? new Date(detail.timestamp * 1000).toLocaleString() : "timestamp unavailable"}
+            Run status: <span className="text-slate-200">{detail.status}</span> · {detail.completed_samples} generated · {detail.failed_samples} failed · threshold status: <span className="text-slate-200">{detail.threshold_status || "not_configured"}</span> · dataset v{detail.dataset_version} · corpus v{detail.corpus_version || "unknown"} · {detail.timestamp ? new Date(detail.timestamp * 1000).toLocaleString() : "timestamp unavailable"}
             {detail.threshold_failures && detail.threshold_failures.length > 0 && <p className="mt-2 text-rose-300">{detail.threshold_failures.join(" · ")}</p>}
-            <p className="mt-2">Available metrics: {Object.entries(detail.metric_availability || {}).filter(([, available]) => available).map(([metric]) => metric).join(", ") || "none"}</p>
+            <p className="mt-2">Available metrics: {Object.entries(detail.metric_availability || {}).filter(([, available]) => available).map(([metric]) => metric).join(", ") || "none"} · Retrieval p50: {detail.retrieval_latency_p50_ms == null ? "Unavailable" : `${detail.retrieval_latency_p50_ms} ms`} · Generation p50: {detail.generation_latency_p50_ms == null ? "Unavailable" : `${detail.generation_latency_p50_ms} ms`}</p>
           </div>
           <div className="overflow-hidden rounded-xl border border-slate-800 bg-[#0f172a]">
             <div className="border-b border-slate-800 p-5"><h3 className="text-sm font-semibold text-slate-100">Question-level results</h3></div>
             <div className="divide-y divide-slate-800/80">{detail.results.map((result) => <div key={result.id} className="p-5">
-              <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-slate-200">{result.question}</p>{result.status === "completed" ? <span className="text-xs text-emerald-400">Completed</span> : <span className="flex items-center gap-1 text-xs text-rose-400"><XCircle className="h-3.5 w-3.5" /> {result.error_type}</span>}</div>
-              {result.status === "completed" ? <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-400 md:grid-cols-4"><span>Relevance <b className="text-slate-200">{score(result.relevance_score)}</b></span><span>Faithfulness <b className="text-slate-200">{score(result.faithfulness_score)}</b></span><span>Correctness <b className="text-slate-200">{score(result.correctness_score)}</b></span><span>Citations <b className="text-slate-200">{score(result.citation_score)}</b></span></div> : <p className="mt-2 text-xs text-rose-300">{result.error_message}</p>}
+              <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-slate-200">{result.question}</p>{result.status === "completed" ? <span className="text-xs text-emerald-400">Generated</span> : result.status === "retrieval_only" ? <span className="text-xs text-blue-400">Retrieval only</span> : <span className="flex items-center gap-1 text-xs text-rose-400"><XCircle className="h-3.5 w-3.5" /> {result.error_type}</span>}</div>
+              {result.status === "completed" || result.status === "retrieval_only" ? <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-400 md:grid-cols-4"><span>Relevance <b className="text-slate-200">{score(result.relevance_score)}</b></span><span>Faithfulness <b className="text-slate-200">{score(result.faithfulness_score)}</b></span><span>Correctness <b className="text-slate-200">{score(result.correctness_score)}</b></span><span>Citations <b className="text-slate-200">{score(result.citation_score)}</b></span></div> : <p className="mt-2 text-xs text-rose-300">{result.error_message}</p>}
               <details className="mt-3 text-xs text-slate-400"><summary className="cursor-pointer text-blue-400">View evidence and metric limitations</summary><div className="mt-3 space-y-2"><p><b>Expected:</b> {result.ground_truth}</p><p><b>Generated:</b> {result.generated_answer || "Unavailable"}</p><p><b>Retrieved chunks:</b> {result.retrieved_chunks.length}</p>{result.unsupported_claims.length > 0 && <p className="text-amber-300"><b>Unsupported claims:</b> {result.unsupported_claims.join(" | ")}</p>}</div></details>
             </div>)}</div>
           </div>

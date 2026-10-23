@@ -47,7 +47,6 @@ class RequestTrace(Base):
     completion_tokens = Column(Integer, nullable=True)
     error_type = Column(String(128), nullable=True)
     error_message = Column(Text, nullable=True)
-
     stages = relationship("RequestStage", back_populates="trace", cascade="all, delete-orphan")
     errors = relationship("RequestError", back_populates="trace", cascade="all, delete-orphan")
 
@@ -96,6 +95,11 @@ class EvaluationRun(Base):
     status = Column(String(32), default="completed")
     scoring_config_json = Column(Text, default="{}")
     error_message = Column(Text, nullable=True)
+    corpus_version = Column(String(64), nullable=True)
+    metric_availability_json = Column(Text, default="{}")
+    retrieval_latency_p50_ms = Column(Float, nullable=True)
+    generation_latency_p50_ms = Column(Float, nullable=True)
+    provider_model = Column(String(128), nullable=True)
 
     results = relationship("EvaluationResult", back_populates="run", cascade="all, delete-orphan")
 
@@ -159,6 +163,11 @@ def init_db():
             "failed_samples": "ALTER TABLE evaluation_runs ADD COLUMN failed_samples INTEGER DEFAULT 0",
             "scoring_config_json": "ALTER TABLE evaluation_runs ADD COLUMN scoring_config_json TEXT DEFAULT '{}'",
             "error_message": "ALTER TABLE evaluation_runs ADD COLUMN error_message TEXT",
+            "corpus_version": "ALTER TABLE evaluation_runs ADD COLUMN corpus_version VARCHAR(64)",
+            "metric_availability_json": "ALTER TABLE evaluation_runs ADD COLUMN metric_availability_json TEXT DEFAULT '{}'",
+            "retrieval_latency_p50_ms": "ALTER TABLE evaluation_runs ADD COLUMN retrieval_latency_p50_ms FLOAT",
+            "generation_latency_p50_ms": "ALTER TABLE evaluation_runs ADD COLUMN generation_latency_p50_ms FLOAT",
+            "provider_model": "ALTER TABLE evaluation_runs ADD COLUMN provider_model VARCHAR(128)",
         },
         "evaluation_results": {
             "test_case_id": "ALTER TABLE evaluation_results ADD COLUMN test_case_id VARCHAR(128)",

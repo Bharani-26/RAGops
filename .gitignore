@@ -28,6 +28,8 @@ data/*
 !data/evaluation/
 data/evaluation/*
 !data/evaluation/dataset.json
+!data/evaluation_corpus/
+!data/evaluation_corpus/**
 
 # Frontend build & dependencies
 frontend/node_modules/

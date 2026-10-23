@@ -20,15 +20,19 @@ def get_embedding_model() -> GoogleGenerativeAIEmbeddings:
     )
 
 
-def get_vector_store(embedding_model: Optional[Any] = None) -> Chroma:
+def get_vector_store(
+    embedding_model: Optional[Any] = None,
+    collection_name: Optional[str] = None,
+) -> Chroma:
     """
     Initialize or load persistent Chroma vector store from settings.CHROMA_PERSIST_DIR.
     Ensures collections and vectors survive FastAPI restarts.
     """
     client = chromadb.PersistentClient(path=str(settings.CHROMA_PERSIST_DIR))
+    collection = collection_name or settings.CHROMA_COLLECTION_NAME
     existing = next(
         (item for item in client.list_collections()
-         if item.name == settings.CHROMA_COLLECTION_NAME),
+         if item.name == collection),
         None,
     )
     expected_model = settings.EMBEDDING_MODEL
@@ -42,7 +46,7 @@ def get_vector_store(embedding_model: Optional[Any] = None) -> Chroma:
             )
     elif not existing:
         client.get_or_create_collection(
-            name=settings.CHROMA_COLLECTION_NAME,
+            name=collection,
             metadata={
                 "embedding_provider": "google_gemini",
                 "embedding_model": expected_model,
@@ -51,7 +55,7 @@ def get_vector_store(embedding_model: Optional[Any] = None) -> Chroma:
 
     embeddings = embedding_model or get_embedding_model()
     return Chroma(
-        collection_name=settings.CHROMA_COLLECTION_NAME,
+        collection_name=collection,
         embedding_function=embeddings,
         persist_directory=str(settings.CHROMA_PERSIST_DIR),
     )
@@ -254,8 +258,9 @@ def retrieve_relevant_documents(
     query: str,
     top_k: Optional[int] = None,
     vector_store: Optional[Chroma] = None,
+    collection_name: Optional[str] = None,
 ) -> List[Document]:
     """Retrieve top-k relevant chunks based on semantic similarity."""
     k = top_k if top_k is not None and top_k > 0 else settings.DEFAULT_TOP_K
-    store = vector_store or get_vector_store()
+    store = vector_store or get_vector_store(collection_name=collection_name)
     return store.similarity_search(query=query, k=k)

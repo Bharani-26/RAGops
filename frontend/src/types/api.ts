@@ -176,6 +176,20 @@ export interface EvaluationRun {
   threshold_status?: string;
   threshold_failures?: string[];
   scoring_config?: Record<string, unknown>;
+  corpus_version?: string | null;
+  retrieval_latency_p50_ms?: number | null;
+  generation_latency_p50_ms?: number | null;
+  provider_model?: string | null;
+  metric_eligibility?: Record<string, number>;
+}
+
+export interface EvaluationCorpusStatus {
+  collection: string;
+  corpus_version: string;
+  document_count: number;
+  chunk_count: number;
+  embedding_model: string;
+  persist_path: string;
 }
 
 export interface EvaluationCase {

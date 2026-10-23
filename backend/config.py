@@ -41,6 +41,10 @@ class Settings(BaseSettings):
         os.getenv("RAGOPS_SQLITE_DB_PATH", str(DATA_DIR / "ragops.db"))
     )
     CHROMA_COLLECTION_NAME: str = "ragops_documents"
+    EVALUATION_COLLECTION_NAME: str = os.getenv(
+        "RAGOPS_EVALUATION_COLLECTION_NAME", "ragops_evaluation_v1"
+    )
+    EVALUATION_CORPUS_VERSION: str = os.getenv("RAGOPS_EVALUATION_CORPUS_VERSION", "1.0.0")
     
     # Chunking configurations
     DEFAULT_CHUNK_SIZE: int = int(os.getenv("DEFAULT_CHUNK_SIZE", "500"))

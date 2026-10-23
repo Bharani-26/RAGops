@@ -128,6 +128,32 @@ Evaluation datasets are stored under `data/evaluation/`. The included
 `dataset.json` is explicitly a development sample and must not be treated as a
 production benchmark.
 
+The original evaluation documents are versioned separately under
+`data/evaluation_corpus/`. They are never copied into the ordinary user upload
+directory. The evaluator uses the dedicated `ragops_evaluation_v1` collection
+by default, while normal uploads continue using `ragops_documents`.
+
+Prepare the evaluation corpus only when a Gemini key is configured:
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.prepare_eval_corpus
+```
+
+Repeat ingestion is idempotent. To explicitly rebuild only the evaluation
+collection:
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.prepare_eval_corpus --reset
+```
+
+To remove only the evaluation collection:
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.prepare_eval_corpus --reset-only
+```
+
+These commands never delete the normal `ragops_documents` collection.
+
 Evaluation endpoints:
 
 ```text
@@ -138,6 +164,7 @@ POST /api/evaluations/run
 GET  /api/evaluations/runs
 GET  /api/evaluations/runs/{run_id}
 GET  /api/evaluations/latest
+GET  /api/evaluations/corpus
 ```
 
 Run the reproducible evaluator with:
@@ -149,6 +176,21 @@ Run the reproducible evaluator with:
   --no-provider `
   --report data\evaluation\latest_report.json
 ```
+
+When Gemini generation is unavailable or only retrieval evidence should be
+measured, run the explicit retrieval-only evaluation:
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.run_eval `
+  --dataset data\evaluation\dataset.json `
+  --config config\rag_quality.json `
+  --retrieval-only `
+  --report data\evaluation\retrieval_report.json
+```
+
+Retrieval-only reports measure retrieval relevance and latency only. They
+leave faithfulness, answer correctness, and citation accuracy unavailable;
+they are not full RAG evaluations.
 
 `--no-provider` is the ordinary CI mode. It writes a report with explicit
 `unavailable` metric values when Gemini credentials are absent; it never

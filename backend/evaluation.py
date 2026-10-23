@@ -14,6 +14,7 @@ from backend.config import settings
 from backend.database import EvaluationResult, EvaluationRun, SessionLocal
 from backend.generation import generate_answer
 from backend.retrieval import retrieve_relevant_documents
+from backend.config import settings
 from backend.evaluation_config import enabled_metrics, evaluate_thresholds, validate_quality_config
 
 DATASET_DIR = settings.DATA_DIR / "evaluation"
@@ -174,7 +175,13 @@ def run_evaluation(
     selected_case_ids: Optional[List[str]] = None,
     provider_available: Optional[bool] = None,
     quality_config: Optional[Dict[str, Any]] = None,
+    collection_name: Optional[str] = None,
+    corpus_version: Optional[str] = None,
+    retrieval_only: bool = False,
 ) -> Dict[str, Any]:
+    evaluation_collection = collection_name or settings.EVALUATION_COLLECTION_NAME
+    if evaluation_collection == settings.CHROMA_COLLECTION_NAME:
+        raise ValueError("Evaluation cannot use the normal user-document collection.")
     cases = [
         case for case in dataset["cases"]
         if not selected_case_ids or case["id"] in selected_case_ids
@@ -191,7 +198,7 @@ def run_evaluation(
             "reference_context": case["reference_context"],
             "expected_source": case.get("expected_source"),
         }
-        if not provider_available:
+        if not provider_available and not retrieval_only:
             results.append({
                 **base_result,
                 "status": "unavailable",
@@ -209,8 +216,38 @@ def run_evaluation(
             })
             continue
         try:
-            documents = retrieve_relevant_documents(case["question"])
+            retrieval_started = time.perf_counter()
+            documents = retrieve_relevant_documents(
+                case["question"],
+                collection_name=evaluation_collection,
+            )
+            retrieval_latency_ms = round((time.perf_counter() - retrieval_started) * 1000, 2)
+            retrieval_score = score_retrieval(
+                case["question"], case["reference_context"], documents, case.get("expected_source")
+            )
+            if retrieval_only:
+                results.append({
+                    **base_result,
+                    "generated_answer": "",
+                    "retrieved_chunks": [
+                        {"content": document.page_content, "metadata": document.metadata}
+                        for document in documents
+                    ],
+                    "citations": [],
+                    "relevance_score": retrieval_score,
+                    "faithfulness_score": None,
+                    "correctness_score": None,
+                    "citation_score": None,
+                    "unsupported_claims": [],
+                    "citation_details": {},
+                    "status": "retrieval_only",
+                    "retrieval_latency_ms": retrieval_latency_ms,
+                    "generation_latency_ms": None,
+                })
+                continue
+            generation_started = time.perf_counter()
             generated = generate_answer(case["question"], documents)
+            generation_latency_ms = round((time.perf_counter() - generation_started) * 1000, 2)
             citation_result = score_citations(generated.get("sources", []), case.get("expected_source"))
             faithfulness = score_faithfulness(generated["answer"], documents)
             results.append({
@@ -221,9 +258,7 @@ def run_evaluation(
                     for document in documents
                 ],
                 "citations": generated.get("sources", []),
-                "relevance_score": score_retrieval(
-                    case["question"], case["reference_context"], documents, case.get("expected_source")
-                ),
+                "relevance_score": retrieval_score,
                 "faithfulness_score": faithfulness["score"],
                 "correctness_score": score_correctness(
                     generated["answer"], case["expected_answer"], case["reference_context"]
@@ -232,6 +267,8 @@ def run_evaluation(
                 "unsupported_claims": faithfulness["unsupported_claims"],
                 "citation_details": citation_result,
                 "status": "completed",
+                "retrieval_latency_ms": retrieval_latency_ms,
+                "generation_latency_ms": generation_latency_ms,
             })
         except Exception as exc:
             results.append({
@@ -248,8 +285,14 @@ def run_evaluation(
                 "faithfulness_score": None,
                 "correctness_score": None,
                 "citation_score": None,
+                "retrieval_latency_ms": None,
+                "generation_latency_ms": None,
             })
     completed = [result for result in results if result["status"] == "completed"]
+    retrieval_completed = [
+        result for result in results
+        if result["status"] in {"completed", "retrieval_only"}
+    ]
     unavailable = [result for result in results if result["status"] == "unavailable"]
     failed = len(results) - len(completed) - len(unavailable)
     run = {
@@ -261,11 +304,12 @@ def run_evaluation(
         "completed_samples": len(completed),
         "failed_samples": failed,
         "status": (
-            "unavailable" if unavailable == results
+            "retrieval_only" if retrieval_only and retrieval_completed
+            else "unavailable" if unavailable == results
             else "failed" if failed == len(results)
             else "partial" if failed or unavailable else "completed"
         ),
-        "avg_relevance": _average(result["relevance_score"] for result in completed),
+        "avg_relevance": _average(result["relevance_score"] for result in retrieval_completed),
         "avg_faithfulness": _average(result["faithfulness_score"] for result in completed),
         "avg_correctness": _average(result["correctness_score"] for result in completed),
         "avg_citation_precision": _average(result["citation_score"] for result in completed),
@@ -296,7 +340,22 @@ def run_evaluation(
         "not_configured" if not enabled else "passed"
     )
     run["threshold_failures"] = threshold_failures
+    run["corpus_version"] = corpus_version or settings.EVALUATION_CORPUS_VERSION
+    run["corpus_collection"] = evaluation_collection
+    run["retrieval_latency_p50_ms"] = _average(result["retrieval_latency_ms"] for result in retrieval_completed)
+    run["generation_latency_p50_ms"] = _average(result["generation_latency_ms"] for result in completed)
+    run["provider_model"] = settings.LLM_MODEL if provider_available else None
     run["scoring_config"]["metric_availability"] = run["metric_availability"]
+    run["scoring_config"]["metric_eligibility"] = {
+        "retrieval_relevance": len(retrieval_completed),
+        "faithfulness": len(completed),
+        "answer_correctness": len(completed),
+        "citation_accuracy": len(completed),
+    }
+    run["scoring_config"]["retrieval_only_cases"] = sum(
+        result["status"] == "retrieval_only" for result in results
+    )
+    run["scoring_config"]["unavailable_cases"] = len(unavailable)
     run["scoring_config"]["threshold_status"] = run["threshold_status"]
     run["scoring_config"]["threshold_failures"] = threshold_failures
     with SessionLocal() as session:
@@ -315,6 +374,11 @@ def run_evaluation(
             avg_citation_precision=run["avg_citation_precision"],
             status=run["status"],
             scoring_config_json=json.dumps(run["scoring_config"]),
+            corpus_version=run["corpus_version"],
+            metric_availability_json=json.dumps(run["metric_availability"]),
+            retrieval_latency_p50_ms=run["retrieval_latency_p50_ms"],
+            generation_latency_p50_ms=run["generation_latency_p50_ms"],
+            provider_model=run["provider_model"],
         )
         session.add(db_run)
         for result in results:

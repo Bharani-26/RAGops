@@ -15,6 +15,7 @@ import {
   CostMetrics,
   EvaluationDataset,
   EvaluationRunDetail,
+  EvaluationCorpusStatus,
   ChunkExplorerResponse,
 } from "../types/api";
 
@@ -175,6 +176,12 @@ class ApiService {
     const res = await fetch(`${this.baseUrl}/api/evaluations/datasets`);
     if (!res.ok) throw new Error("Failed to fetch evaluation datasets");
     return (await res.json()).datasets || [];
+  }
+
+  async getEvaluationCorpus(): Promise<EvaluationCorpusStatus> {
+    const res = await fetch(`${this.baseUrl}/api/evaluations/corpus`);
+    if (!res.ok) throw new Error("Failed to fetch evaluation corpus status");
+    return res.json();
   }
 
   async runEvaluation(datasetId: string, version?: string): Promise<EvaluationRunDetail> {

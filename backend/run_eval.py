@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from backend.evaluation import load_datasets, run_evaluation, validate_dataset
+from backend.evaluation import run_evaluation, validate_dataset
 from backend.evaluation_config import enabled_metrics, validate_quality_config
 from backend.config import settings
 
@@ -16,6 +16,9 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=Path("config/rag_quality.json"))
     parser.add_argument("--report", type=Path, default=settings.DATA_DIR / "evaluation" / "latest_report.json")
     parser.add_argument("--no-provider", action="store_true", help="Do not call Gemini; report provider metrics as unavailable.")
+    parser.add_argument("--retrieval-only", action="store_true", help="Evaluate retrieval evidence without generating answers.")
+    parser.add_argument("--collection", default=settings.EVALUATION_COLLECTION_NAME)
+    parser.add_argument("--corpus-version", default=settings.EVALUATION_CORPUS_VERSION)
     args = parser.parse_args()
     try:
         dataset = validate_dataset(json.loads(args.dataset.read_text(encoding="utf-8")))
@@ -28,6 +31,9 @@ def main() -> int:
             dataset,
             provider_available=provider_available,
             quality_config=config,
+            collection_name=args.collection,
+            corpus_version=args.corpus_version,
+            retrieval_only=args.retrieval_only,
         )
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2), encoding="utf-8")
