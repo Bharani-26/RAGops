@@ -441,7 +441,7 @@ export const DocumentChatPage: React.FC = () => {
         <div className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center max-w-xl mx-auto py-8">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600/20 to-indigo-600/20 border border-blue-500/30 flex items-center justify-center mb-4 text-blue-400 shadow-xl shadow-blue-500/10">
+              <div className="w-16 h-16 rounded-2xl bg-[#2f8f83]/15 border border-[#2f8f83]/40 flex items-center justify-center mb-4 text-[#5bb7aa] shadow-xl shadow-teal-900/10">
                 <Sparkles className="w-8 h-8" />
               </div>
               <h2 className="text-xl font-bold text-slate-100 tracking-tight mb-2">

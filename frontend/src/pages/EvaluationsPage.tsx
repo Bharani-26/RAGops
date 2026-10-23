@@ -68,7 +68,7 @@ export const EvaluationsPage: React.FC = () => {
 
   return (
     <div className="flex-1 space-y-6 overflow-y-auto bg-[#0b1120] p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-blue-900/40 bg-gradient-to-r from-[#0f1b33] to-[#121c32] p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#353d48] bg-[#252b35] p-6">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-blue-400">RAG quality evaluation</p>
           <h2 className="mt-1 flex items-center gap-2 text-base font-semibold text-slate-100"><ShieldCheck className="h-5 w-5 text-blue-400" /> Evaluation engine</h2>
@@ -128,11 +128,11 @@ export const EvaluationsPage: React.FC = () => {
                 correctness: run.answer_correctness,
                 citations: run.citation_accuracy,
               }))}>
-                <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
-                <XAxis dataKey="run" stroke="#64748b" fontSize={11} />
-                <YAxis domain={[0, 1]} stroke="#64748b" fontSize={11} />
+                <CartesianGrid stroke="#353d48" strokeDasharray="3 3" />
+                <XAxis dataKey="run" stroke="#9aa5b1" fontSize={11} />
+                <YAxis domain={[0, 1]} stroke="#9aa5b1" fontSize={11} />
                 <Tooltip contentStyle={{ backgroundColor: "#0b1220", borderColor: "#334155", color: "#f8fafc", fontSize: "12px" }} />
-                <Line type="monotone" dataKey="relevance" stroke="#60a5fa" name="Relevance" connectNulls />
+                <Line type="monotone" dataKey="relevance" stroke="#5bb7aa" name="Relevance" connectNulls />
                 <Line type="monotone" dataKey="faithfulness" stroke="#34d399" name="Faithfulness" connectNulls />
                 <Line type="monotone" dataKey="correctness" stroke="#818cf8" name="Correctness" connectNulls />
                 <Line type="monotone" dataKey="citations" stroke="#fbbf24" name="Citations" connectNulls />

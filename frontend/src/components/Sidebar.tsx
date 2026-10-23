@@ -32,13 +32,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ apiStatus }) => {
       <div>
         {/* Brand / Logo */}
         <div className="h-16 px-6 flex items-center gap-3 border-b border-slate-800/80">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white font-bold text-lg">
+          <div className="w-9 h-9 rounded-lg bg-[#2f8f83] flex items-center justify-center shadow-lg shadow-teal-900/20 text-white font-bold text-lg">
             <Layers className="w-5 h-5 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-100 tracking-wide text-base">RAGOps</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-950 text-blue-400 font-medium border border-blue-800/50">
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#2f8f83]/20 text-[#8bd1c7] font-medium border border-[#2f8f83]/50">
                 v0.2
               </span>
             </div>
@@ -57,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ apiStatus }) => {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
-                      ? "bg-blue-600/15 text-blue-400 border border-blue-500/30 shadow-sm"
+                      ? "bg-[#2f8f83]/15 text-[#8bd1c7] border border-[#2f8f83]/40 shadow-sm"
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
                   }`
                 }

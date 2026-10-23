@@ -155,8 +155,6 @@ def test_list_chunks_endpoint():
         response = client.get("/api/rag/chunks?filename=notes&page_size=10")
     assert response.status_code == 200
     assert response.json() == expected
-
-
 # =========================================================================
 # Query & Observability Tests
 # =========================================================================

@@ -15,12 +15,11 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 bg-blue-950/40 border border-blue-800/40 px-3 py-1.5 rounded-full text-xs text-blue-300 font-medium">
-          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+        <div className="flex items-center gap-2 bg-[#2f8f83]/15 border border-[#2f8f83]/40 px-3 py-1.5 rounded-full text-xs text-[#8bd1c7] font-medium">
+          <Sparkles className="w-3.5 h-3.5 text-[#5bb7aa]" />
           <span>Gemini 3.8 Flash • ChromaDB</span>
         </div>
       </div>
     </header>
   );
 };
-

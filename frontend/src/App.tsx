@@ -41,7 +41,7 @@ const Layout: React.FC<{ children: React.ReactNode; apiStatus: "online" | "offli
   const meta = getPageMeta();
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0a0f1d] text-slate-100">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#171a21] text-slate-100">
       <Sidebar apiStatus={apiStatus} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={meta.title} subtitle={meta.subtitle} />

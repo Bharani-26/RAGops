@@ -249,6 +249,9 @@ async def list_documents():
     return {"documents": list_stored_documents()}
 
 
+
+
+
 @router.get("/chunks")
 async def list_chunks(
     page: int = Query(1, ge=1),

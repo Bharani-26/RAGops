@@ -13,9 +13,9 @@ import {
 } from "../types/api";
 
 const chartTooltip = {
-  backgroundColor: "#0b1220",
-  borderColor: "#334155",
-  color: "#f8fafc",
+  backgroundColor: "#252b35",
+  borderColor: "#353d48",
+  color: "#e8ecf0",
   borderRadius: "8px",
   fontSize: "12px",
 };
@@ -132,14 +132,14 @@ export const DashboardPage: React.FC = () => {
         <>
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <ChartPanel title="Latency trend" subtitle="Successful requests only">
-              {latencyData.length ? <ResponsiveContainer width="100%" height="100%"><AreaChart data={latencyData}><defs><linearGradient id="latencyFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.45} /><stop offset="95%" stopColor="#3b82f6" stopOpacity={0} /></linearGradient></defs><CartesianGrid stroke="#1e293b" strokeDasharray="3 3" /><XAxis dataKey="time" stroke="#64748b" fontSize={11} /><YAxis stroke="#64748b" fontSize={11} /><Tooltip contentStyle={chartTooltip} /><Area dataKey="latency" stroke="#60a5fa" fill="url(#latencyFill)" /></AreaChart></ResponsiveContainer> : <EmptyChart text="No successful latency points in this range." />}
+              {latencyData.length ? <ResponsiveContainer width="100%" height="100%"><AreaChart data={latencyData}><defs><linearGradient id="latencyFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2f8f83" stopOpacity={0.45} /><stop offset="95%" stopColor="#2f8f83" stopOpacity={0} /></linearGradient></defs><CartesianGrid stroke="#353d48" strokeDasharray="3 3" /><XAxis dataKey="time" stroke="#9aa5b1" fontSize={11} /><YAxis stroke="#9aa5b1" fontSize={11} /><Tooltip contentStyle={chartTooltip} /><Area dataKey="latency" stroke="#5bb7aa" fill="url(#latencyFill)" /></AreaChart></ResponsiveContainer> : <EmptyChart text="No successful latency points in this range." />}
             </ChartPanel>
             <ChartPanel title="Error distribution" subtitle="Persisted failure types">
               {errorData.length ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={errorData} dataKey="count" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={3}>{errorData.map((entry, index) => <Cell key={entry.name} fill={["#f43f5e", "#f59e0b", "#8b5cf6", "#06b6d4"][index % 4]} />)}</Pie><Tooltip contentStyle={chartTooltip} /></PieChart></ResponsiveContainer> : <EmptyChart text="No errors recorded in this range." />}
             </ChartPanel>
           </div>
           <ChartPanel title="Token usage" subtitle={overview?.token_usage_available ? "Reported by Gemini response metadata" : "Token usage unavailable; no values are invented"}>
-            {costData.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={costData}><CartesianGrid stroke="#1e293b" strokeDasharray="3 3" /><XAxis dataKey="time" stroke="#64748b" fontSize={11} /><YAxis stroke="#64748b" fontSize={11} /><Tooltip contentStyle={chartTooltip} /><Bar dataKey="input" fill="#3b82f6" name="Input tokens" /><Bar dataKey="output" fill="#8b5cf6" name="Output tokens" /></BarChart></ResponsiveContainer> : <EmptyChart text="Token usage is unavailable for these requests." />}
+            {costData.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={costData}><CartesianGrid stroke="#353d48" strokeDasharray="3 3" /><XAxis dataKey="time" stroke="#9aa5b1" fontSize={11} /><YAxis stroke="#9aa5b1" fontSize={11} /><Tooltip contentStyle={chartTooltip} /><Bar dataKey="input" fill="#5bb7aa" name="Input tokens" /><Bar dataKey="output" fill="#c58b5f" name="Output tokens" /></BarChart></ResponsiveContainer> : <EmptyChart text="Token usage is unavailable for these requests." />}
           </ChartPanel>
           <div className="overflow-hidden rounded-xl border border-slate-800 bg-[#0f172a]">
             <div className="border-b border-slate-800 p-5"><h3 className="text-sm font-semibold text-slate-100">Recent request traces</h3><p className="mt-1 text-xs text-slate-400">Actual persisted RAG executions</p></div>
