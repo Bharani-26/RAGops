@@ -39,6 +39,30 @@ export interface IndexedDocument {
   modified_at: number;
 }
 
+export interface StoredChunk {
+  chunk_id: string | null;
+  document_id: string | null;
+  filename: string;
+  page_number?: number | null;
+  metadata: Record<string, unknown>;
+  text: string;
+}
+
+export interface ChunkDocumentSummary {
+  document_id: string;
+  filename: string;
+  chunk_count: number;
+}
+
+export interface ChunkExplorerResponse {
+  chunks: StoredChunk[];
+  documents: ChunkDocumentSummary[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+}
+
 export interface TraceStage {
   name: string;
   duration_ms?: number;

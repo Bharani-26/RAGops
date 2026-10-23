@@ -1,6 +1,6 @@
 import uuid
 
-from backend.database import RequestTrace, SessionLocal, record_trace
+from backend.database import RequestTrace, SessionLocal, get_metrics_summary, record_trace
 from backend.observability import get_overview, get_request_detail, percentile
 from backend.routes import _estimate_cost
 
@@ -94,3 +94,29 @@ def test_empty_overview_has_no_fabricated_latency_or_cost(monkeypatch):
     assert overview["average_latency_ms"] is None
     assert overview["p95_latency_ms"] is None
     assert overview["estimated_cost"] is None
+
+
+def test_legacy_metrics_summary_handles_unavailable_costs():
+    request_id = f"test-{uuid.uuid4()}"
+    record_trace(
+        request_id=request_id,
+        query="cost availability test",
+        answer="answer",
+        model="test-model",
+        latency_ms=25.0,
+        status_code=200,
+        status="success",
+        top_k=2,
+        sources=[],
+        stages=[],
+        estimated_cost=None,
+    )
+    try:
+        metrics = get_metrics_summary()
+        assert metrics["total_requests"] >= 1
+        assert metrics["total_cost"] is None
+    finally:
+        with SessionLocal() as session:
+            trace = session.get(RequestTrace, request_id)
+            session.delete(trace)
+            session.commit()

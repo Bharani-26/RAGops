@@ -135,6 +135,28 @@ def test_list_documents_endpoint():
     assert isinstance(response.json()["documents"], list)
 
 
+def test_list_chunks_endpoint():
+    expected = {
+        "chunks": [{
+            "chunk_id": "doc-1_c0",
+            "document_id": "doc-1",
+            "filename": "notes.txt",
+            "page_number": 1,
+            "metadata": {"chunk_index": 0},
+            "text": "Stored chunk text",
+        }],
+        "documents": [{"document_id": "doc-1", "filename": "notes.txt", "chunk_count": 1}],
+        "page": 1,
+        "page_size": 10,
+        "total": 1,
+        "total_pages": 1,
+    }
+    with patch("backend.routes.list_stored_chunks", return_value=expected):
+        response = client.get("/api/rag/chunks?filename=notes&page_size=10")
+    assert response.status_code == 200
+    assert response.json() == expected
+
+
 # =========================================================================
 # Query & Observability Tests
 # =========================================================================

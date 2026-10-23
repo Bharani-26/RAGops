@@ -24,6 +24,7 @@ from backend.retrieval import (
     find_document_by_hash,
     list_stored_documents,
     get_stored_document,
+    list_stored_chunks,
 )
 from backend.generation import generate_answer
 from backend.database import (
@@ -245,6 +246,29 @@ async def upload_document(
 async def list_documents():
     """List documents represented by persisted Chroma metadata."""
     return {"documents": list_stored_documents()}
+
+
+@router.get("/chunks")
+async def list_chunks(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    document_id: Optional[str] = Query(None),
+    filename: Optional[str] = Query(None),
+):
+    """List persisted Chroma chunks for document inspection."""
+    try:
+        return list_stored_chunks(
+            page=page,
+            page_size=page_size,
+            document_id=document_id,
+            filename=filename,
+        )
+    except Exception as exc:
+        logger.error("Failed to list Chroma chunks: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to read stored document chunks.",
+        ) from exc
 
 
 @router.get("/documents/{document_id}")

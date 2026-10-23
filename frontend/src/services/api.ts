@@ -15,6 +15,7 @@ import {
   CostMetrics,
   EvaluationDataset,
   EvaluationRunDetail,
+  ChunkExplorerResponse,
 } from "../types/api";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
@@ -66,6 +67,23 @@ class ApiService {
     if (!res.ok) throw new Error("Failed to fetch documents");
     const data = await res.json();
     return data.documents || [];
+  }
+
+  async listChunks(params: {
+    page: number;
+    pageSize: number;
+    documentId?: string;
+    filename?: string;
+  }): Promise<ChunkExplorerResponse> {
+    const query = new URLSearchParams({
+      page: String(params.page),
+      page_size: String(params.pageSize),
+    });
+    if (params.documentId) query.set("document_id", params.documentId);
+    if (params.filename) query.set("filename", params.filename);
+    const res = await fetch(`${this.baseUrl}/api/rag/chunks?${query.toString()}`);
+    if (!res.ok) throw new Error("Failed to fetch stored chunks");
+    return res.json();
   }
 
   async queryRag(payload: QueryRequest): Promise<QueryResponse> {

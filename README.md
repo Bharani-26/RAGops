@@ -2,6 +2,16 @@
 
 RAGOps provides continuous observability, monitoring, telemetry tracing, and automated evaluation for Retrieval-Augmented Generation (RAG) pipelines.
 
+## Prerequisites
+
+- Python 3.10 or newer within the tested CI range
+- Node.js 20.19.0 or newer (the CI workflow uses 20.19.0)
+- npm
+- A Google Gemini API key for document embedding and grounded answer generation
+
+The ordinary test and CI paths do not call Gemini. They use mocked provider calls
+and isolated local storage. The live demo workflow below requires a valid key.
+
 ---
 
 ## Persistent Local Storage Architecture
@@ -48,6 +58,12 @@ The frontend-compatible `/api/rag/upload`, `/api/rag/documents`, and
 - `GET /api/documents`
 - `GET /api/documents/{document_id}`
 - `POST /api/rag/query`
+- `GET /api/rag/chunks?page=1&page_size=20&filename=report`
+
+The chunk explorer endpoint reads the existing `ragops_documents` collection and
+returns persisted chunk text, document ID, filename, page number when available,
+metadata, pagination, and document chunk counts. It does not create a second
+database or collection.
 
 Document listings and details are read from persisted Chroma metadata rather
 than from a hardcoded sample list. Uploads are content-hash idempotent, so
@@ -221,9 +237,40 @@ npm run dev
 ### 3. Run Test Suite
 
 ```powershell
-python -m pytest -v
+.\.venv\Scripts\python.exe -m pytest -q
 ```
 *(Tests mock out external Gemini calls and include verification of Chroma persistence across restarts)*
+
+### 4. Demo Workflow
+
+1. Start the backend and frontend using the commands above.
+2. Open `http://localhost:5175`.
+3. Open **Document Chat**, upload a `.txt` or `.pdf` file, and wait for indexing.
+4. Open **Document Explorer** to inspect the chunks and metadata stored in ChromaDB.
+5. Ask a question in **Document Chat** and inspect the returned source citations.
+6. Open **Dashboard**, **Request Traces**, and **Cost Analytics** to inspect the
+   recorded request telemetry.
+7. Open **Evaluations** to validate the versioned dataset and run an evaluation
+   when the indexed corpus and Gemini key are available.
+
+Token usage and estimated cost are intentionally shown as unavailable when the
+provider does not return usage metadata or pricing is not configured. The checked
+in sample dataset is not a production quality benchmark.
+
+## Security and scope limitations
+
+- This is a local development and portfolio application, not a multi-tenant
+  service. There is currently no authentication, authorization, user identity,
+  or per-user document namespace. Anyone who can reach the API can list or query
+  the shared local collection.
+- Uploaded files are restricted to PDF/TXT, limited to 25 MB, sanitized, and
+  stored beneath the configured upload directory.
+- API keys are read from environment configuration and are not returned by the
+  settings endpoint. Do not expose the backend publicly without adding
+  authentication, authorization, transport security, and tenant isolation.
+- Error details from provider and retrieval failures are recorded for local
+  troubleshooting; review and sanitize them before using this service in a
+  public environment.
 
 ---
 

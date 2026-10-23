@@ -332,14 +332,15 @@ def get_metrics_summary() -> Dict[str, Any]:
 
         errors = sum(1 for r in rows if r.status == "error")
         error_rate = (errors / total_requests) * 100.0
-        total_cost = sum(r.estimated_cost for r in rows)
+        available_costs = [r.estimated_cost for r in rows if r.estimated_cost is not None]
+        total_cost = sum(available_costs) if available_costs else None
 
         return {
             "total_requests": total_requests,
             "p95_latency_ms": round(p95_latency, 2),
             "avg_latency_ms": round(avg_latency, 2),
             "error_rate": round(error_rate, 2),
-            "total_cost": round(total_cost, 6),
+            "total_cost": round(total_cost, 6) if total_cost is not None else None,
         }
 
 

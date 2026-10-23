@@ -185,6 +185,71 @@ def get_stored_document(document_id: str) -> Optional[Dict[str, Any]]:
     }
 
 
+def list_stored_chunks(
+    page: int = 1,
+    page_size: int = 20,
+    document_id: Optional[str] = None,
+    filename: Optional[str] = None,
+) -> Dict[str, Any]:
+    """List persisted Chroma chunks with pagination and optional filters."""
+    if page < 1:
+        raise ValueError("page must be greater than or equal to 1")
+    if page_size < 1 or page_size > 100:
+        raise ValueError("page_size must be between 1 and 100")
+
+    client = chromadb.PersistentClient(path=str(settings.CHROMA_PERSIST_DIR))
+    collection = client.get_or_create_collection(name=settings.CHROMA_COLLECTION_NAME)
+    result = collection.get(include=["metadatas", "documents"])
+    metadatas = result.get("metadatas") or []
+    documents = result.get("documents") or []
+    chunks: List[Dict[str, Any]] = []
+    for index, metadata in enumerate(metadatas):
+        current_document_id = metadata.get("doc_id")
+        current_filename = metadata.get("source", "document")
+        if document_id and current_document_id != document_id:
+            continue
+        if filename and filename.lower() not in current_filename.lower():
+            continue
+        chunks.append({
+            "chunk_id": metadata.get("chunk_id"),
+            "document_id": current_document_id,
+            "filename": current_filename,
+            "page_number": metadata.get("page_number"),
+            "metadata": metadata,
+            "text": documents[index] if index < len(documents) else "",
+        })
+
+    chunks.sort(key=lambda item: (
+        str(item.get("filename") or "").lower(),
+        str(item.get("document_id") or ""),
+        item.get("metadata", {}).get("chunk_index", 0),
+    ))
+    total = len(chunks)
+    start = (page - 1) * page_size
+    page_chunks = chunks[start:start + page_size]
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for chunk in chunks:
+        key = chunk["document_id"]
+        if not key:
+            continue
+        if key not in grouped:
+            grouped[key] = {
+                "document_id": key,
+                "filename": chunk["filename"],
+                "chunk_count": 0,
+            }
+        grouped[key]["chunk_count"] += 1
+
+    return {
+        "chunks": page_chunks,
+        "documents": sorted(grouped.values(), key=lambda item: item["filename"].lower()),
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "total_pages": (total + page_size - 1) // page_size,
+    }
+
+
 def retrieve_relevant_documents(
     query: str,
     top_k: Optional[int] = None,

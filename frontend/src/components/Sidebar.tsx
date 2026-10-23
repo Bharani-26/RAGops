@@ -9,6 +9,7 @@ import {
   Settings,
   Layers,
   Sparkles,
+  FileSearch,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -19,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ apiStatus }) => {
   const navItems = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
     { name: "Document Chat", path: "/chat", icon: MessageSquareText },
+    { name: "Document Explorer", path: "/documents", icon: FileSearch },
     { name: "Request Traces", path: "/traces", icon: Activity },
     { name: "Evaluations", path: "/evaluations", icon: CheckCircle2 },
     { name: "Cost Analytics", path: "/costs", icon: DollarSign },
@@ -96,4 +98,3 @@ export const Sidebar: React.FC<SidebarProps> = ({ apiStatus }) => {
     </aside>
   );
 };
-
