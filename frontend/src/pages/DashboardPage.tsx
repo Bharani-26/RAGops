@@ -11,6 +11,7 @@ import {
   CostMetrics, ErrorMetrics, LatencyMetrics, ObservabilityOverview,
   ObservabilityRequest,
 } from "../types/api";
+import { ClearDataButton } from "../components/ClearDataButton";
 
 const chartTooltip = {
   backgroundColor: "#252b35",
@@ -111,6 +112,7 @@ export const DashboardPage: React.FC = () => {
           <button onClick={() => void load()} className="flex items-center gap-2 rounded-lg border border-blue-800/50 bg-blue-950/50 px-3 py-2 text-xs text-blue-300 hover:bg-blue-900/50">
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </button>
+          <ClearDataButton scope="telemetry" onCleared={() => void load()} />
         </div>
       </div>
 

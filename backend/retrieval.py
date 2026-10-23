@@ -157,6 +157,27 @@ def list_stored_documents() -> List[Dict[str, Any]]:
     return sorted(grouped.values(), key=lambda item: item["filename"].lower())
 
 
+def clear_stored_documents() -> int:
+    """Remove only user-uploaded documents from the normal collection."""
+    client = chromadb.PersistentClient(path=str(settings.CHROMA_PERSIST_DIR))
+    collection = client.get_or_create_collection(name=settings.CHROMA_COLLECTION_NAME)
+    result = collection.get(include=["metadatas"])
+    ids = result.get("ids") or []
+    metadatas = result.get("metadatas") or []
+    upload_names = {
+        metadata.get("server_filename")
+        for metadata in metadatas
+        if metadata.get("server_filename")
+    }
+    if ids:
+        collection.delete(ids=ids)
+    for server_filename in upload_names:
+        upload_path = settings.UPLOAD_DIR / server_filename
+        if upload_path.is_file():
+            upload_path.unlink()
+    return len(ids)
+
+
 def get_stored_document(document_id: str) -> Optional[Dict[str, Any]]:
     """Return persisted metadata and chunk details for one document."""
     client = chromadb.PersistentClient(path=str(settings.CHROMA_PERSIST_DIR))

@@ -130,7 +130,8 @@ def test_run_evaluation_records_partial_failure():
         ],
     }
     with patch("backend.evaluation.retrieve_relevant_documents") as retrieve, \
-         patch("backend.evaluation.generate_answer") as generate:
+         patch("backend.evaluation.generate_answer") as generate, \
+         patch("backend.routes.corpus_status", return_value={"chunk_count": 1}):
         retrieve.side_effect = [
             [Document(page_content="ChromaDB stores vectors.", metadata={"source": "a.txt"})],
             RuntimeError("mock provider failure"),

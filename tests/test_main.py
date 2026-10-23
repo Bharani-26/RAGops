@@ -51,6 +51,23 @@ def test_readiness_probe():
     assert "storage_paths" in data
 
 
+def test_clear_runtime_data_scopes():
+    with patch("backend.routes.clear_stored_documents", return_value=3) as clear_documents, \
+         patch("backend.routes.clear_request_telemetry", return_value=4) as clear_telemetry, \
+         patch("backend.routes.clear_evaluation_runs", return_value=2) as clear_evaluations:
+        response = client.delete("/api/rag/data/all")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "scope": "all",
+        "deleted": 9,
+        "message": "Cleared 9 runtime records from all.",
+    }
+    clear_documents.assert_called_once()
+    clear_telemetry.assert_called_once()
+    clear_evaluations.assert_called_once()
+
+
 # =========================================================================
 # Upload & Ingestion Tests
 # =========================================================================

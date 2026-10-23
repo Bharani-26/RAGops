@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, FileSearch, RefreshCw, Search } from "lucide-react";
 import { api } from "../services/api";
 import { ChunkDocumentSummary, StoredChunk } from "../types/api";
+import { ClearDataButton } from "../components/ClearDataButton";
 
 const PAGE_SIZE = 10;
 
@@ -57,9 +58,12 @@ export const DocumentExplorerPage: React.FC = () => {
             <h2 className="text-lg font-semibold text-slate-100">Stored document chunks</h2>
             <p className="mt-1 text-sm text-slate-400">Live records from the existing ChromaDB collection.</p>
           </div>
-          <button onClick={() => void loadChunks()} className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800">
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <ClearDataButton scope="documents" onCleared={() => void loadChunks(1, "")} />
+            <button onClick={() => void loadChunks()} className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800">
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </button>
+          </div>
         </div>
 
         <form onSubmit={submitSearch} className="flex gap-2">

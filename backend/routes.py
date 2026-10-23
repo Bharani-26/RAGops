@@ -25,6 +25,7 @@ from backend.retrieval import (
     list_stored_documents,
     get_stored_document,
     list_stored_chunks,
+    clear_stored_documents,
 )
 from backend.generation import generate_answer
 from backend.database import (
@@ -35,6 +36,8 @@ from backend.database import (
     check_sqlite_health,
     SessionLocal,
     EvaluationRun,
+    clear_request_telemetry,
+    clear_evaluation_runs,
 )
 from backend.observability import (
     get_overview,
@@ -89,6 +92,12 @@ class QueryResponse(BaseModel):
     sources: List[ChunkMetadata]
     retrieval_latency_ms: float = 0.0
     generation_latency_ms: float = 0.0
+
+
+class ClearDataResponse(BaseModel):
+    scope: str
+    deleted: int
+    message: str
 
 
 def _estimate_cost(prompt_tokens: Optional[int], completion_tokens: Optional[int]) -> Optional[float]:
@@ -247,6 +256,35 @@ async def upload_document(
 async def list_documents():
     """List documents represented by persisted Chroma metadata."""
     return {"documents": list_stored_documents()}
+
+
+@router.delete("/data/{scope}", response_model=ClearDataResponse)
+async def clear_data(scope: Literal["documents", "telemetry", "evaluations", "all"]):
+    """Clear selected runtime data while preserving evaluation fixtures and corpus files."""
+    try:
+        if scope == "documents":
+            deleted = clear_stored_documents()
+        elif scope == "telemetry":
+            deleted = clear_request_telemetry()
+        elif scope == "evaluations":
+            deleted = clear_evaluation_runs()
+        else:
+            deleted = (
+                clear_stored_documents()
+                + clear_request_telemetry()
+                + clear_evaluation_runs()
+            )
+        return {
+            "scope": scope,
+            "deleted": deleted,
+            "message": f"Cleared {deleted} runtime records from {scope}.",
+        }
+    except Exception as exc:
+        logger.error("Failed to clear %s runtime data: %s", scope, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear {scope} data.",
+        ) from exc
 
 
 
@@ -647,6 +685,15 @@ async def execute_evaluation(request: EvaluationRunRequest):
     if dataset is None:
         raise HTTPException(status_code=404, detail="Evaluation dataset not found")
     try:
+        corpus = corpus_status()
+        if corpus["chunk_count"] == 0:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Evaluation corpus is empty. Prepare it with "
+                    "`python -m backend.prepare_eval_corpus` before running evaluation."
+                ),
+            )
         quality_config_path = BASE_DIR / "config" / "rag_quality.json"
         quality_config = json.loads(quality_config_path.read_text(encoding="utf-8"))
         from backend.evaluation_config import validate_quality_config
@@ -661,6 +708,8 @@ async def execute_evaluation(request: EvaluationRunRequest):
             collection_name=settings.EVALUATION_COLLECTION_NAME,
             corpus_version=settings.EVALUATION_CORPUS_VERSION,
         )
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:

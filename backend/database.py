@@ -284,7 +284,33 @@ def record_trace(
         logger.exception("Error persisting request trace")
 
 
+def refresh_missing_trace_costs() -> int:
+    """Backfill costs for traces that already contain token usage."""
+    if (
+        settings.INPUT_PRICE_PER_MILLION_TOKENS is None
+        or settings.OUTPUT_PRICE_PER_MILLION_TOKENS is None
+    ):
+        return 0
+    with SessionLocal() as session:
+        rows = session.scalars(
+            select(RequestTrace).where(
+                RequestTrace.estimated_cost.is_(None),
+                RequestTrace.prompt_tokens.is_not(None),
+                RequestTrace.completion_tokens.is_not(None),
+            )
+        ).all()
+        for row in rows:
+            row.estimated_cost = (
+                row.prompt_tokens * settings.INPUT_PRICE_PER_MILLION_TOKENS / 1_000_000
+                + row.completion_tokens * settings.OUTPUT_PRICE_PER_MILLION_TOKENS / 1_000_000
+            )
+        if rows:
+            session.commit()
+        return len(rows)
+
+
 def get_all_traces(limit: int = 100) -> List[Dict[str, Any]]:
+    refresh_missing_trace_costs()
     with SessionLocal() as session:
         query = select(RequestTrace).order_by(RequestTrace.timestamp.desc()).limit(limit)
         rows = session.scalars(query).all()
@@ -321,6 +347,7 @@ def get_all_traces(limit: int = 100) -> List[Dict[str, Any]]:
 
 
 def get_metrics_summary() -> Dict[str, Any]:
+    refresh_missing_trace_costs()
     with SessionLocal() as session:
         rows = session.scalars(select(RequestTrace)).all()
         total_requests = len(rows)
@@ -371,6 +398,28 @@ def get_all_evaluations() -> List[Dict[str, Any]]:
             }
             for r in runs
         ]
+
+
+def clear_request_telemetry() -> int:
+    """Delete request traces and their related stages/errors."""
+    with SessionLocal() as session:
+        traces = session.scalars(select(RequestTrace)).all()
+        count = len(traces)
+        for trace in traces:
+            session.delete(trace)
+        session.commit()
+        return count
+
+
+def clear_evaluation_runs() -> int:
+    """Delete persisted evaluation runs and their question-level results."""
+    with SessionLocal() as session:
+        runs = session.scalars(select(EvaluationRun)).all()
+        count = len(runs)
+        for run in runs:
+            session.delete(run)
+        session.commit()
+        return count
 
 
 # Automatically initialize tables

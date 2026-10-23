@@ -23,7 +23,6 @@ import {
   User,
   PanelLeftClose,
   PanelLeftOpen,
-  ArrowRight,
   HelpCircle,
 } from "lucide-react";
 import { api } from "../services/api";
@@ -60,13 +59,6 @@ export const DocumentChatPage: React.FC = () => {
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const examplePrompts = [
-    "What are the main topics discussed in the uploaded documents?",
-    "Summarize the key architectural decisions outlined in the text.",
-    "Explain the core requirements and constraints specified.",
-    "What recommendations or conclusions does the document provide?",
-  ];
 
   const fetchDocuments = async () => {
     setLoadingDocs(true);
@@ -410,7 +402,7 @@ export const DocumentChatPage: React.FC = () => {
             </button>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span className="font-medium text-slate-300">Model:</span>
-              <span className="px-2 py-0.5 rounded bg-blue-950 text-blue-300 font-mono text-[11px] border border-blue-900/60">
+              <span className="font-mono text-[11px] text-slate-400">
                 gemini-3.8-flash • chroma-top-4
               </span>
             </div>
@@ -452,22 +444,6 @@ export const DocumentChatPage: React.FC = () => {
                 answers without hallucinations.
               </p>
 
-              {/* Example Prompts Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left">
-                {examplePrompts.map((prompt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      setInputText(prompt);
-                      textareaRef.current?.focus();
-                    }}
-                    className="p-3.5 rounded-xl bg-[#0f172a] border border-slate-800 hover:border-blue-500/40 hover:bg-[#131e36] transition-all text-xs text-slate-300 flex items-start justify-between group shadow-sm"
-                  >
-                    <span className="line-clamp-2 leading-relaxed">{prompt}</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-400 shrink-0 ml-2 mt-0.5 transition-colors" />
-                  </button>
-                ))}
-              </div>
             </div>
           ) : (
             messages.map((msg) => (

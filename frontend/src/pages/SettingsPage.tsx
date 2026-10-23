@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Settings, Shield, Server, Key, Database, Cpu, CheckCircle2, AlertTriangle } from "lucide-react";
 import { api } from "../services/api";
 import { AppSettings } from "../types/api";
+import { ClearDataButton } from "../components/ClearDataButton";
 
 export const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -23,6 +24,9 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className="flex-1 p-8 overflow-y-auto space-y-8 bg-[#0b1120]">
+      <div className="flex justify-end">
+        <ClearDataButton scope="all" label="Clear all runtime data" />
+      </div>
       {/* Security Banner */}
       <div className="p-4 rounded-xl bg-[#0f172a] border border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -129,4 +133,3 @@ export const SettingsPage: React.FC = () => {
     </div>
   );
 };
-

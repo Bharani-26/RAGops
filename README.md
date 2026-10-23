@@ -69,6 +69,20 @@ Document listings and details are read from persisted Chroma metadata rather
 than from a hardcoded sample list. Uploads are content-hash idempotent, so
 re-uploading the same bytes reuses the existing document and chunks.
 
+The navigation pages provide confirmed clear actions for their persisted data:
+
+- **Document Chat** and **Document Explorer** clear only user-uploaded documents,
+  their Chroma chunks, and matching files under `data/uploads/`.
+- **Dashboard**, **Request Traces**, and **Cost Analytics** clear request
+  telemetry, including trace stages and errors.
+- **Evaluations** clear saved evaluation runs and results only.
+- **Settings** offers **Clear all runtime data**, which combines the three
+  operations above.
+
+These actions do not delete the version-controlled evaluation dataset or
+`data/evaluation_corpus/`, and they never reset the isolated evaluation
+collection. Every destructive action requires confirmation in the browser.
+
 ---
 
 ## Project Structure

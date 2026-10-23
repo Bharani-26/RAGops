@@ -70,6 +70,15 @@ class ApiService {
     return data.documents || [];
   }
 
+  async clearData(scope: "documents" | "telemetry" | "evaluations" | "all"): Promise<{ deleted: number; message: string }> {
+    const res = await fetch(`${this.baseUrl}/api/rag/data/${scope}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `Failed to clear ${scope} data`);
+    }
+    return res.json();
+  }
+
   async listChunks(params: {
     page: number;
     pageSize: number;

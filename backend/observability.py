@@ -6,7 +6,13 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
 
-from backend.database import RequestError, RequestStage, RequestTrace, SessionLocal
+from backend.database import (
+    RequestError,
+    RequestStage,
+    RequestTrace,
+    SessionLocal,
+    refresh_missing_trace_costs,
+)
 
 
 def percentile(values: List[float], percentile_value: float) -> Optional[float]:
@@ -71,6 +77,7 @@ def get_overview(
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
 ) -> Dict[str, Any]:
+    refresh_missing_trace_costs()
     with SessionLocal() as session:
         rows = session.scalars(_filtered_query(status, date_from, date_to)).all()
     total = len(rows)
@@ -104,6 +111,7 @@ def get_requests(
     date_from: Optional[datetime],
     date_to: Optional[datetime],
 ) -> Dict[str, Any]:
+    refresh_missing_trace_costs()
     with SessionLocal() as session:
         rows = session.scalars(_filtered_query(status, date_from, date_to)).all()
     start = (page - 1) * page_size
@@ -195,6 +203,7 @@ def get_costs(
     date_from: Optional[datetime],
     date_to: Optional[datetime],
 ) -> Dict[str, Any]:
+    refresh_missing_trace_costs()
     with SessionLocal() as session:
         rows = session.scalars(_filtered_query(None, date_from, date_to)).all()
     available = [row for row in rows if row.estimated_cost is not None]

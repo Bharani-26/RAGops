@@ -3,6 +3,7 @@ import { CheckCircle2, Play, RefreshCw, ShieldCheck, Target, XCircle } from "luc
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../services/api";
 import { EvaluationCorpusStatus, EvaluationDataset, EvaluationRun, EvaluationRunDetail } from "../types/api";
+import { ClearDataButton } from "../components/ClearDataButton";
 
 const score = (value: number | null | undefined) => value == null ? "Unavailable" : value.toFixed(2);
 
@@ -65,6 +66,7 @@ export const EvaluationsPage: React.FC = () => {
   };
 
   const activeDataset = datasets.find((dataset) => `${dataset.dataset_id}:${dataset.version}` === selectedDataset);
+  const corpusReady = Boolean(corpus && corpus.chunk_count > 0);
 
   return (
     <div className="flex-1 space-y-6 overflow-y-auto bg-[#0b1120] p-8">
@@ -75,11 +77,12 @@ export const EvaluationsPage: React.FC = () => {
           <p className="mt-1 max-w-2xl text-xs text-slate-400">Runs actual retrieval and Gemini generation against versioned test cases. Scores are deterministic development metrics, not scientific validation claims.</p>
         </div>
         <div className="flex items-center gap-2">
+          <ClearDataButton scope="evaluations" onCleared={() => { setRuns([]); setDetail(null); }} />
           <select value={selectedDataset} onChange={(event) => setSelectedDataset(event.target.value)} className="rounded-lg border border-slate-700 bg-[#0f172a] px-3 py-2 text-xs text-slate-300">
             <option value="">Select dataset</option>
             {datasets.map((dataset) => <option key={`${dataset.dataset_id}:${dataset.version}`} value={`${dataset.dataset_id}:${dataset.version}`}>{dataset.name} · v{dataset.version}</option>)}
           </select>
-          <button onClick={() => void runSelected()} disabled={!selectedDataset || running} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-50">
+          <button onClick={() => void runSelected()} disabled={!selectedDataset || running || !corpusReady} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-50">
             {running ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} Run evaluation
           </button>
         </div>
@@ -90,6 +93,11 @@ export const EvaluationsPage: React.FC = () => {
       {corpus && <div className="rounded-lg border border-slate-800 bg-[#0f172a] p-4 text-xs text-slate-400">
         Evaluation corpus <span className="text-slate-200">{corpus.corpus_version}</span> · isolated collection <span className="text-slate-200">{corpus.collection}</span> · {corpus.document_count} documents · {corpus.chunk_count} indexed chunks
       </div>}
+      {corpus && corpus.chunk_count === 0 && (
+        <div className="rounded-lg border border-amber-900/50 bg-amber-950/20 p-4 text-xs text-amber-300">
+          The evaluation corpus has no indexed chunks. Run <code className="font-mono text-amber-200">python -m backend.prepare_eval_corpus</code> from the project root, then refresh this page before starting an evaluation.
+        </div>
+      )}
 
       {detail && (
         <>

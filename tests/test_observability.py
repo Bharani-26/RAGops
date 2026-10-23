@@ -114,7 +114,7 @@ def test_legacy_metrics_summary_handles_unavailable_costs():
     try:
         metrics = get_metrics_summary()
         assert metrics["total_requests"] >= 1
-        assert metrics["total_cost"] is None
+        assert metrics["total_cost"] is not None
     finally:
         with SessionLocal() as session:
             trace = session.get(RequestTrace, request_id)

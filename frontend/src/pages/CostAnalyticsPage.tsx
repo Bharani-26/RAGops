@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { DollarSign, Cpu, Layers, HelpCircle, AlertCircle } from "lucide-react";
 import { api } from "../services/api";
 import { MetricsSummary, RequestTrace } from "../types/api";
+import { ClearDataButton } from "../components/ClearDataButton";
 
 export const CostAnalyticsPage: React.FC = () => {
   const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
@@ -25,6 +26,9 @@ export const CostAnalyticsPage: React.FC = () => {
 
   return (
     <div className="flex-1 p-8 overflow-y-auto space-y-8 bg-[#0b1120]">
+      <div className="flex justify-end">
+        <ClearDataButton scope="telemetry" onCleared={() => { setMetrics(null); setTraces([]); }} />
+      </div>
       {/* Estimation Notice */}
       <div className="p-4 rounded-xl bg-blue-950/30 border border-blue-900/40 flex items-start gap-3 text-xs text-blue-300">
         <HelpCircle className="w-5 h-5 shrink-0 text-blue-400 mt-0.5" />

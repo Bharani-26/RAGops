@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import { RequestTrace } from "../types/api";
+import { ClearDataButton } from "../components/ClearDataButton";
 
 export const TracesPage: React.FC = () => {
   const [traces, setTraces] = useState<RequestTrace[]>([]);
@@ -71,6 +72,7 @@ export const TracesPage: React.FC = () => {
               <option value="success">Success Only</option>
               <option value="error">Errors Only</option>
             </select>
+            <ClearDataButton scope="telemetry" onCleared={() => { setTraces([]); setSelectedTrace(null); }} />
           </div>
         </div>
 
