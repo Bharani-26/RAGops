@@ -582,6 +582,7 @@ class EvaluationRunRequest(BaseModel):
 
 
 def _run_summary(run) -> dict:
+    scoring_config = json.loads(run.scoring_config_json or "{}")
     return {
         "run_id": run.id,
         "timestamp": run.timestamp,
@@ -596,7 +597,10 @@ def _run_summary(run) -> dict:
         "avg_faithfulness": run.avg_faithfulness,
         "avg_correctness": run.avg_correctness,
         "avg_citation_precision": run.avg_citation_precision,
-        "scoring_config": json.loads(run.scoring_config_json or "{}"),
+        "scoring_config": scoring_config,
+        "metric_availability": scoring_config.get("metric_availability", {}),
+        "threshold_status": scoring_config.get("threshold_status", "not_configured"),
+        "threshold_failures": scoring_config.get("threshold_failures", []),
         "error_message": run.error_message,
     }
 
@@ -631,7 +635,7 @@ async def execute_evaluation(request: EvaluationRunRequest):
         return run_evaluation(dataset, request.case_ids)
     except Exception as exc:
         logger.exception("Evaluation run failed")
-        raise HTTPException(status_code=500, detail=f"Evaluation run failed: {exc}")
+        raise HTTPException(status_code=500, detail="Evaluation run failed; check server logs.")
 
 
 @evaluation_router.get("/runs")
@@ -639,6 +643,15 @@ async def evaluation_runs():
     with SessionLocal() as session:
         runs = session.scalars(select(EvaluationRun).order_by(EvaluationRun.timestamp.desc())).all()
         return {"runs": [_run_summary(run) for run in runs]}
+
+
+@evaluation_router.get("/latest")
+async def latest_evaluation():
+    with SessionLocal() as session:
+        run = session.scalars(select(EvaluationRun).order_by(EvaluationRun.timestamp.desc())).first()
+        if run is None:
+            raise HTTPException(status_code=404, detail="No evaluation runs found")
+        return await evaluation_run_detail(run.id)
 
 
 @evaluation_router.get("/runs/{run_id}")

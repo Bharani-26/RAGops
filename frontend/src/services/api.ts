@@ -196,6 +196,12 @@ class ApiService {
     return (await res.json()).runs || [];
   }
 
+  async getLatestEvaluation(): Promise<EvaluationRun> {
+    const res = await fetch(`${this.baseUrl}/api/evaluations/latest`);
+    if (!res.ok) throw new Error("Failed to fetch latest evaluation");
+    return res.json();
+  }
+
   async getEvaluationRun(runId: string): Promise<EvaluationRunDetail> {
     const res = await fetch(`${this.baseUrl}/api/evaluations/runs/${runId}`);
     if (!res.ok) throw new Error("Failed to fetch evaluation run");

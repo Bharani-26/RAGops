@@ -11,11 +11,12 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-METRICS = (
-    "retrieval_relevance",
-    "faithfulness",
-    "answer_correctness",
-    "citation_accuracy",
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from backend.evaluation_config import (
+    METRICS,
+    evaluate_thresholds,
+    validate_quality_config,
 )
 
 
@@ -37,8 +38,14 @@ def validate_dataset(path: Path) -> Dict[str, Any]:
     if not isinstance(cases, list) or not cases:
         raise ValueError("cases must be a non-empty list")
     ids = [case.get("id") for case in cases]
-    if any(not case.get("question") or not case.get("expected_answer") for case in cases):
-        raise ValueError("every case requires question and expected_answer")
+    if any(
+        not case.get("question")
+        or not case.get("expected_answer")
+        or not case.get("reference_context")
+        or not case.get("expected_source")
+        for case in cases
+    ):
+        raise ValueError("every case requires question, expected_answer, reference_context, and expected_source")
     if len(ids) != len(set(ids)) or any(not case_id for case_id in ids):
         raise ValueError("case IDs must be unique and non-empty")
     return dataset
@@ -62,35 +69,15 @@ def normalize_metrics(metrics: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def evaluate_gate(config: Dict[str, Any], metrics: Optional[Dict[str, Any]]) -> list[str]:
-    failures: list[str] = []
-    minimums = config.get("minimum_scores") or {}
-    regressions = config.get("maximum_regression") or {}
-    baseline = config.get("baseline")
     if metrics is None:
-        enabled = [metric for metric in METRICS if _numeric(minimums.get(metric)) is not None]
-        if enabled:
-            return [f"metrics are required because thresholds are enabled: {', '.join(enabled)}"]
-        if baseline:
-            return ["metrics are required because a baseline is configured"]
-        return failures
-    for metric in METRICS:
-        actual = _numeric(metrics.get(metric))
-        minimum = _numeric(minimums.get(metric))
-        if minimum is not None and actual is None:
-            failures.append(f"{metric}: score is unavailable but minimum is {minimum}")
-        elif minimum is not None and actual < minimum:
-            failures.append(f"{metric}: {actual:.4f} is below minimum {minimum:.4f}")
-        tolerance = _numeric(regressions.get(metric))
-        baseline_value = _numeric((baseline or {}).get(metric)) if isinstance(baseline, dict) else None
-        if tolerance is not None and baseline_value is not None:
-            if actual is None:
-                failures.append(f"{metric}: score is unavailable for baseline comparison")
-            elif actual < baseline_value - tolerance:
-                failures.append(
-                    f"{metric}: {actual:.4f} regressed beyond baseline {baseline_value:.4f} "
-                    f"with tolerance {tolerance:.4f}"
-                )
-    return failures
+        enabled = [metric for metric in METRICS if _numeric((config.get("minimum_scores") or {}).get(metric)) is not None]
+        enabled += [
+            metric for metric in METRICS
+            if _numeric((config.get("maximum_regression") or {}).get(metric)) is not None
+            and _numeric((config.get("baseline") or {}).get(metric)) is not None
+        ]
+        return [f"metrics are required because thresholds are enabled: {', '.join(sorted(set(enabled)))}"] if enabled else []
+    return evaluate_thresholds(config, metrics)
 
 
 def summary(config: Dict[str, Any], metrics: Optional[Dict[str, Any]], failures: list[str]) -> str:
@@ -109,7 +96,8 @@ def summary(config: Dict[str, Any], metrics: Optional[Dict[str, Any]], failures:
         minimum = (config.get("minimum_scores") or {}).get(metric)
         baseline = (config.get("baseline") or {}).get(metric) if isinstance(config.get("baseline"), dict) else None
         lines.append(f"| {metric} | {actual if actual is not None else 'unavailable'} | {minimum if minimum is not None else 'disabled'} | {baseline if baseline is not None else 'none'} |")
-    lines.extend(["", "### Result", "PASS" if not failures else "FAIL"])
+    result = "FAIL" if failures else "NOT EVALUATED" if metrics is None else "PASS"
+    lines.extend(["", "### Result", result])
     if failures:
         lines.extend(["", "### Failures", *[f"- {failure}" for failure in failures]])
     elif metrics is None:
@@ -126,8 +114,7 @@ def main() -> int:
     try:
         dataset = validate_dataset(args.dataset)
         config = load_json(args.config)
-        if config.get("dataset_id") != dataset["dataset_id"] or config.get("dataset_version") != dataset["version"]:
-            raise ValueError("quality config dataset does not match the validated dataset")
+        validate_quality_config(config, dataset)
         metrics = normalize_metrics(load_json(args.metrics_file)) if args.metrics_file else None
         failures = evaluate_gate(config, metrics)
         report = summary(config, metrics, failures)

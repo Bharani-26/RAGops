@@ -41,6 +41,9 @@ jobs:
       - name: Validate evaluation dataset and quality configuration
         run: python scripts/quality_gate.py --config config/rag_quality.json --dataset data/evaluation/dataset.json
 
+      - name: Run offline evaluation report
+        run: python -m backend.run_eval --dataset data/evaluation/dataset.json --config config/rag_quality.json --no-provider --report "$RUNNER_TEMP/ragops-evaluation.json"
+
       - name: Run backend tests and deterministic evaluation tests
         run: python -m pytest -q
 

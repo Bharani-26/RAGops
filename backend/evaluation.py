@@ -14,6 +14,7 @@ from backend.config import settings
 from backend.database import EvaluationResult, EvaluationRun, SessionLocal
 from backend.generation import generate_answer
 from backend.retrieval import retrieve_relevant_documents
+from backend.evaluation_config import enabled_metrics, evaluate_thresholds, validate_quality_config
 
 DATASET_DIR = settings.DATA_DIR / "evaluation"
 DATASET_DIR.mkdir(parents=True, exist_ok=True)
@@ -24,19 +25,37 @@ def _tokens(value: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]{2,}", (value or "").lower()))
 
 
-def _overlap(left: str, right: str) -> Optional[float]:
+def _f1(left: str, right: str) -> Optional[float]:
     expected = _tokens(left)
     actual = _tokens(right)
     if not expected:
         return None
-    return round(len(expected & actual) / len(expected), 4)
+    overlap = len(expected & actual)
+    if not overlap or not actual:
+        return 0.0
+    precision = overlap / len(actual)
+    recall = overlap / len(expected)
+    return round(2 * precision * recall / (precision + recall), 4)
 
 
-def score_retrieval(question: str, reference_context: str, documents: List[Document]) -> Optional[float]:
+def score_retrieval(
+    question: str,
+    reference_context: str,
+    documents: List[Document],
+    expected_source: Optional[str] = None,
+) -> Optional[float]:
     if not documents or not reference_context:
-        return 0.0 if documents else None
+        return None
     retrieved = " ".join(document.page_content for document in documents)
-    return _overlap(reference_context, retrieved)
+    context_score = _f1(reference_context, retrieved)
+    source_score = None
+    if expected_source:
+        source_score = float(any(
+            str(document.metadata.get("source", "")).lower() == expected_source.lower()
+            for document in documents
+        ))
+    available = [score for score in (context_score, source_score) if score is not None]
+    return round(sum(available) / len(available), 4) if available else None
 
 
 def score_faithfulness(answer: str, documents: List[Document]) -> Dict[str, Any]:
@@ -47,7 +66,7 @@ def score_faithfulness(answer: str, documents: List[Document]) -> Dict[str, Any]
     supported = []
     unsupported = []
     for claim in claims:
-        score = _overlap(claim, context) or 0.0
+        score = _f1(claim, context) or 0.0
         (supported if score >= 0.5 else unsupported).append(claim)
     return {
         "score": round(len(supported) / len(claims), 4) if claims else None,
@@ -58,20 +77,16 @@ def score_faithfulness(answer: str, documents: List[Document]) -> Dict[str, Any]
 def score_correctness(answer: str, expected_answer: str, reference_context: str) -> Optional[float]:
     if not answer or not expected_answer:
         return None
-    direct = _overlap(expected_answer, answer) or 0.0
-    context_support = _overlap(expected_answer, reference_context) if reference_context else direct
-    return round((direct + (context_support or 0.0)) / 2, 4)
+    return _f1(expected_answer, answer)
 
 
 def score_citations(
     sources: List[Dict[str, Any]],
     expected_source: Optional[str],
 ) -> Dict[str, Any]:
-    source_names = {str(source.get("source", "")).lower() for source in sources}
-    if not sources and not expected_source:
-        return {"score": None, "missing": [], "invalid": [], "unsupported": []}
     if not expected_source:
-        return {"score": 1.0, "missing": [], "invalid": [], "unsupported": []}
+        return {"score": None, "missing": [], "invalid": [], "unsupported": []}
+    source_names = {str(source.get("source", "")).lower() for source in sources}
     if expected_source.lower() in source_names:
         return {"score": 1.0, "missing": [], "invalid": [], "unsupported": []}
     return {
@@ -100,15 +115,19 @@ def validate_dataset(payload: Dict[str, Any]) -> Dict[str, Any]:
         expected = str(case.get("expected_answer", "")).strip()
         if not case_id or case_id in seen:
             raise ValueError("case IDs must be unique and non-empty")
-        if not question or not expected:
-            raise ValueError(f"case '{case_id}' requires question and expected_answer")
+        reference_context = str(case.get("reference_context", "")).strip()
+        expected_source = str(case.get("expected_source", "")).strip()
+        if not question or not expected or not reference_context or not expected_source:
+            raise ValueError(
+                f"case '{case_id}' requires question, expected_answer, reference_context, and expected_source"
+            )
         seen.add(case_id)
         validated.append({
             "id": case_id,
             "question": question,
             "expected_answer": expected,
-            "reference_context": str(case.get("reference_context", "")),
-            "expected_source": case.get("expected_source"),
+            "reference_context": reference_context,
+            "expected_source": expected_source,
             "tags": case.get("tags", []),
         })
     return {
@@ -150,32 +169,61 @@ def _average(values: Iterable[Optional[float]]) -> Optional[float]:
     return round(sum(available) / len(available), 4) if available else None
 
 
-def run_evaluation(dataset: Dict[str, Any], selected_case_ids: Optional[List[str]] = None) -> Dict[str, Any]:
+def run_evaluation(
+    dataset: Dict[str, Any],
+    selected_case_ids: Optional[List[str]] = None,
+    provider_available: Optional[bool] = None,
+    quality_config: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     cases = [
         case for case in dataset["cases"]
         if not selected_case_ids or case["id"] in selected_case_ids
     ]
     run_id = str(uuid.uuid4())
     results = []
+    if provider_available is None:
+        provider_available = bool(settings.GOOGLE_API_KEY and "your_gemini" not in settings.GOOGLE_API_KEY)
     for case in cases:
+        base_result = {
+            "test_case_id": case["id"],
+            "question": case["question"],
+            "ground_truth": case["expected_answer"],
+            "reference_context": case["reference_context"],
+            "expected_source": case.get("expected_source"),
+        }
+        if not provider_available:
+            results.append({
+                **base_result,
+                "status": "unavailable",
+                "error_type": "ProviderUnavailable",
+                "error_message": "Gemini credentials are not configured.",
+                "generated_answer": "",
+                "retrieved_chunks": [],
+                "citations": [],
+                "unsupported_claims": [],
+                "citation_details": {},
+                "relevance_score": None,
+                "faithfulness_score": None,
+                "correctness_score": None,
+                "citation_score": None,
+            })
+            continue
         try:
             documents = retrieve_relevant_documents(case["question"])
             generated = generate_answer(case["question"], documents)
             citation_result = score_citations(generated.get("sources", []), case.get("expected_source"))
             faithfulness = score_faithfulness(generated["answer"], documents)
             results.append({
-                "test_case_id": case["id"],
-                "question": case["question"],
-                "ground_truth": case["expected_answer"],
-                "reference_context": case["reference_context"],
-                "expected_source": case.get("expected_source"),
+                **base_result,
                 "generated_answer": generated["answer"],
                 "retrieved_chunks": [
                     {"content": document.page_content, "metadata": document.metadata}
                     for document in documents
                 ],
                 "citations": generated.get("sources", []),
-                "relevance_score": score_retrieval(case["question"], case["reference_context"], documents),
+                "relevance_score": score_retrieval(
+                    case["question"], case["reference_context"], documents, case.get("expected_source")
+                ),
                 "faithfulness_score": faithfulness["score"],
                 "correctness_score": score_correctness(
                     generated["answer"], case["expected_answer"], case["reference_context"]
@@ -187,20 +235,23 @@ def run_evaluation(dataset: Dict[str, Any], selected_case_ids: Optional[List[str
             })
         except Exception as exc:
             results.append({
-                "test_case_id": case["id"],
-                "question": case["question"],
-                "ground_truth": case["expected_answer"],
-                "reference_context": case["reference_context"],
+                **base_result,
                 "status": "failed",
                 "error_type": type(exc).__name__,
-                "error_message": str(exc),
+                "error_message": "Evaluation case failed; see server logs for details.",
+                "generated_answer": "",
+                "retrieved_chunks": [],
+                "citations": [],
+                "unsupported_claims": [],
+                "citation_details": {},
                 "relevance_score": None,
                 "faithfulness_score": None,
                 "correctness_score": None,
                 "citation_score": None,
             })
     completed = [result for result in results if result["status"] == "completed"]
-    failed = len(results) - len(completed)
+    unavailable = [result for result in results if result["status"] == "unavailable"]
+    failed = len(results) - len(completed) - len(unavailable)
     run = {
         "run_id": run_id,
         "dataset_id": dataset["dataset_id"],
@@ -209,17 +260,45 @@ def run_evaluation(dataset: Dict[str, Any], selected_case_ids: Optional[List[str
         "total_samples": len(results),
         "completed_samples": len(completed),
         "failed_samples": failed,
-        "status": "failed" if failed == len(results) else ("partial" if failed else "completed"),
+        "status": (
+            "unavailable" if unavailable == results
+            else "failed" if failed == len(results)
+            else "partial" if failed or unavailable else "completed"
+        ),
         "avg_relevance": _average(result["relevance_score"] for result in completed),
         "avg_faithfulness": _average(result["faithfulness_score"] for result in completed),
         "avg_correctness": _average(result["correctness_score"] for result in completed),
         "avg_citation_precision": _average(result["citation_score"] for result in completed),
         "scoring_config": {
-            "method": "deterministic lexical overlap and source validation",
-            "version": "1",
+            "method": "token F1 for facts plus exact source validation",
+            "version": "2",
+            "metric_limitations": {
+                "retrieval_relevance": "Combines reference-context token F1 and expected-source hit; it is not semantic relevance.",
+                "faithfulness": "Sentence support uses token F1 threshold 0.5; it is not entailment.",
+                "answer_correctness": "Expected-answer token F1 is deterministic fact coverage, not a human or LLM judgment.",
+                "citation_accuracy": "Requires the expected source to be cited among retrieved sources.",
+            },
         },
         "results": results,
     }
+    metrics = {
+        "retrieval_relevance": run["avg_relevance"],
+        "faithfulness": run["avg_faithfulness"],
+        "answer_correctness": run["avg_correctness"],
+        "citation_accuracy": run["avg_citation_precision"],
+    }
+    enabled = enabled_metrics(quality_config or {})
+    threshold_failures = evaluate_thresholds(quality_config or {}, metrics) if quality_config else []
+    run["metric_availability"] = {key: value is not None for key, value in metrics.items()}
+    run["threshold_status"] = (
+        "failed" if threshold_failures else
+        "unavailable" if enabled and any(metrics[key] is None for key in enabled) else
+        "not_configured" if not enabled else "passed"
+    )
+    run["threshold_failures"] = threshold_failures
+    run["scoring_config"]["metric_availability"] = run["metric_availability"]
+    run["scoring_config"]["threshold_status"] = run["threshold_status"]
+    run["scoring_config"]["threshold_failures"] = threshold_failures
     with SessionLocal() as session:
         db_run = EvaluationRun(
             id=run_id,

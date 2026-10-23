@@ -172,6 +172,10 @@ export interface EvaluationRun {
   completed_samples?: number;
   failed_samples?: number;
   status?: string;
+  metric_availability?: Record<string, boolean>;
+  threshold_status?: string;
+  threshold_failures?: string[];
+  scoring_config?: Record<string, unknown>;
 }
 
 export interface EvaluationCase {

@@ -5,13 +5,20 @@
   "description": "Clearly labeled development-only evaluation cases. Results are not production quality claims.",
   "sample": true,
   "cases": [
-    {
-      "id": "sample-001",
-      "question": "What storage system does RAGOps use for vectors?",
-      "expected_answer": "RAGOps uses persistent ChromaDB storage for vectors.",
-      "reference_context": "RAGOps stores vectors in a persistent ChromaDB collection.",
-      "expected_source": "README.md",
-      "tags": ["sample", "storage"]
-    }
+    {"id": "sample-001", "question": "What storage system does RAGOps use for vectors?", "expected_answer": "RAGOps uses persistent ChromaDB storage for vectors.", "reference_context": "RAGOps stores vectors in a persistent ChromaDB collection.", "expected_source": "README.md", "tags": ["sample", "storage"]},
+    {"id": "sample-002", "question": "Which database stores observability telemetry?", "expected_answer": "SQLite stores observability telemetry.", "reference_context": "The observability database is SQLite and stores request traces and evaluation records.", "expected_source": "README.md", "tags": ["sample", "observability"]},
+    {"id": "sample-003", "question": "Which file formats can users upload?", "expected_answer": "Users can upload PDF and TXT files.", "reference_context": "Uploaded documents are restricted to PDF and TXT files.", "expected_source": "README.md", "tags": ["sample", "ingestion"]},
+    {"id": "sample-004", "question": "What is the maximum upload size?", "expected_answer": "The maximum upload size is 25 MB.", "reference_context": "File uploads are limited to a maximum size of 25 MB.", "expected_source": "README.md", "tags": ["sample", "ingestion"]},
+    {"id": "sample-005", "question": "What does the RAG query return?", "expected_answer": "The RAG query returns a grounded answer with source citations.", "reference_context": "The query pipeline returns grounded answers and source metadata for citations.", "expected_source": "README.md", "tags": ["sample", "retrieval"]},
+    {"id": "sample-006", "question": "Which model provider powers embeddings?", "expected_answer": "Gemini powers the document embeddings.", "reference_context": "Gemini is used for embeddings and response generation.", "expected_source": "README.md", "tags": ["sample", "models"]},
+    {"id": "sample-007", "question": "Does ChromaDB data survive restarts?", "expected_answer": "Yes, the persistent ChromaDB collection survives application restarts.", "reference_context": "The persistent collection survives FastAPI restarts without re-embedding documents.", "expected_source": "README.md", "tags": ["sample", "persistence"]},
+    {"id": "sample-008", "question": "What is the default chunk size?", "expected_answer": "The default chunk size is 500 characters.", "reference_context": "DEFAULT_CHUNK_SIZE is configured as 500.", "expected_source": "README.md", "tags": ["sample", "chunking"]},
+    {"id": "sample-009", "question": "What is the default chunk overlap?", "expected_answer": "The default chunk overlap is 50 characters.", "reference_context": "DEFAULT_CHUNK_OVERLAP is configured as 50.", "expected_source": "README.md", "tags": ["sample", "chunking"]},
+    {"id": "sample-010", "question": "What does the readiness endpoint check?", "expected_answer": "The readiness endpoint checks ChromaDB and SQLite accessibility.", "reference_context": "The readiness probe checks ChromaDB and SQLite accessibility.", "expected_source": "README.md", "tags": ["sample", "health"]},
+    {"id": "sample-011", "question": "What does the faithfulness metric measure?", "expected_answer": "Faithfulness measures whether generated claims are supported by retrieved context.", "reference_context": "Faithfulness checks whether generated sentences are supported by retrieved context.", "expected_source": "README.md", "tags": ["sample", "evaluation"]},
+    {"id": "sample-012", "question": "What does citation accuracy validate?", "expected_answer": "Citation accuracy validates that the expected source appears in retrieved source metadata.", "reference_context": "Citation accuracy validates expected sources against retrieved source metadata.", "expected_source": "README.md", "tags": ["sample", "evaluation"]},
+    {"id": "sample-013", "question": "Does ordinary CI call Gemini?", "expected_answer": "No, ordinary CI does not call Gemini.", "reference_context": "The ordinary CI workflow does not call Gemini or require an API key.", "expected_source": "README.md", "tags": ["sample", "ci"]},
+    {"id": "sample-014", "question": "Where is the frontend served during development?", "expected_answer": "The frontend is served at http://localhost:5175.", "reference_context": "The Vite development frontend runs at http://localhost:5175.", "expected_source": "README.md", "tags": ["sample", "frontend"]},
+    {"id": "sample-015", "question": "What must be configured for cost metrics?", "expected_answer": "Provider usage metadata and input/output pricing must be configured for cost metrics.", "reference_context": "Cost metrics require provider usage metadata and configured input and output pricing.", "expected_source": "README.md", "tags": ["sample", "costs"]}
   ]
 }

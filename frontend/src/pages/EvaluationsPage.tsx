@@ -94,7 +94,9 @@ export const EvaluationsPage: React.FC = () => {
             <Metric label="Citation accuracy" value={detail.avg_citation_precision} icon={<Target className="h-4 w-4 text-amber-400" />} />
           </div>
           <div className="rounded-xl border border-slate-800 bg-[#0f172a] p-5 text-xs text-slate-400">
-            Run status: <span className="text-slate-200">{detail.status}</span> · {detail.completed_samples} completed · {detail.failed_samples} failed · scoring: deterministic lexical overlap and source validation.
+            Run status: <span className="text-slate-200">{detail.status}</span> · {detail.completed_samples} completed · {detail.failed_samples} failed · threshold status: <span className="text-slate-200">{detail.threshold_status || "not_configured"}</span> · dataset v{detail.dataset_version} · {detail.timestamp ? new Date(detail.timestamp * 1000).toLocaleString() : "timestamp unavailable"}
+            {detail.threshold_failures && detail.threshold_failures.length > 0 && <p className="mt-2 text-rose-300">{detail.threshold_failures.join(" · ")}</p>}
+            <p className="mt-2">Available metrics: {Object.entries(detail.metric_availability || {}).filter(([, available]) => available).map(([metric]) => metric).join(", ") || "none"}</p>
           </div>
           <div className="overflow-hidden rounded-xl border border-slate-800 bg-[#0f172a]">
             <div className="border-b border-slate-800 p-5"><h3 className="text-sm font-semibold text-slate-100">Question-level results</h3></div>

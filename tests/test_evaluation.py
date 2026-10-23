@@ -2,6 +2,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 import pytest
+import json
 from fastapi.testclient import TestClient
 from langchain_core.documents import Document
 
@@ -11,7 +12,10 @@ from backend.evaluation import (
     score_faithfulness,
     score_retrieval,
     validate_dataset,
+    run_evaluation,
 )
+from backend.evaluation_config import validate_quality_config
+from backend.run_eval import main as run_eval_main
 from backend.main import app
 from backend.config import settings
 from backend.database import EvaluationRun, SessionLocal
@@ -36,6 +40,32 @@ def test_dataset_validation_rejects_duplicate_or_empty_cases():
                 {"id": "same", "question": "two", "expected_answer": "answer"},
             ],
         })
+    with pytest.raises(ValueError):
+        validate_dataset({
+            "dataset_id": "valid",
+            "version": "1",
+            "cases": [{"id": "case", "question": "q", "expected_answer": "a"}],
+        })
+
+
+def test_quality_config_rejects_invalid_thresholds():
+    dataset = {
+        "dataset_id": "valid",
+        "version": "1",
+        "cases": [{
+            "id": "case",
+            "question": "q",
+            "expected_answer": "a",
+            "reference_context": "context",
+            "expected_source": "doc.txt",
+        }],
+    }
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        validate_quality_config({
+            "dataset_id": "valid",
+            "dataset_version": "1",
+            "minimum_scores": {"faithfulness": 1.2},
+        }, dataset)
 
 
 def test_metric_scoring_distinguishes_supported_and_unsupported_content():
@@ -87,12 +117,14 @@ def test_run_evaluation_records_partial_failure():
                 "question": "What is stored?",
                 "expected_answer": "ChromaDB",
                 "reference_context": "ChromaDB stores vectors.",
+                "expected_source": "a.txt",
             },
             {
                 "id": "bad",
                 "question": "This call fails",
                 "expected_answer": "answer",
                 "reference_context": "context",
+                "expected_source": "b.txt",
             },
         ],
     }
@@ -123,3 +155,65 @@ def test_run_evaluation_records_partial_failure():
         session.delete(stored_run)
         session.commit()
     Path(settings.DATA_DIR / "evaluation" / "test_1.json").unlink(missing_ok=True)
+
+
+def test_unavailable_provider_is_explicit_and_persisted():
+    dataset = {
+        "dataset_id": "unavailable_test",
+        "version": "1",
+        "name": "Unavailable",
+        "cases": [{
+            "id": "case",
+            "question": "q",
+            "expected_answer": "a",
+            "reference_context": "context",
+            "expected_source": "doc.txt",
+        }],
+    }
+    result = run_evaluation(dataset, provider_available=False)
+    assert result["status"] == "unavailable"
+    assert result["metric_availability"]["faithfulness"] is False
+    with SessionLocal() as session:
+        stored = session.get(EvaluationRun, result["run_id"])
+        assert stored is not None
+        session.delete(stored)
+        session.commit()
+
+
+def test_run_eval_reports_json_and_fails_enabled_unavailable_threshold(tmp_path, monkeypatch):
+    dataset = {
+        "dataset_id": "cli_test",
+        "version": "1",
+        "name": "CLI test",
+        "sample": True,
+        "cases": [{
+            "id": "case",
+            "question": "q",
+            "expected_answer": "a",
+            "reference_context": "context",
+            "expected_source": "doc.txt",
+        }],
+    }
+    dataset_path = tmp_path / "dataset.json"
+    config_path = tmp_path / "config.json"
+    report_path = tmp_path / "report.json"
+    dataset_path.write_text(json.dumps(dataset), encoding="utf-8")
+    config_path.write_text(json.dumps({
+        "dataset_id": "cli_test",
+        "dataset_version": "1",
+        "minimum_scores": {"faithfulness": 0.8},
+        "maximum_regression": {},
+        "baseline": None,
+    }), encoding="utf-8")
+    monkeypatch.setattr("sys.argv", [
+        "run_eval", "--dataset", str(dataset_path), "--config", str(config_path),
+        "--no-provider", "--report", str(report_path),
+    ])
+    assert run_eval_main() == 1
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["threshold_status"] == "failed"
+    assert report["metric_availability"]["faithfulness"] is False
+    with SessionLocal() as session:
+        stored = session.get(EvaluationRun, report["run_id"])
+        session.delete(stored)
+        session.commit()

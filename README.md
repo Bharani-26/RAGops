@@ -137,29 +137,54 @@ GET  /api/evaluations/datasets/{dataset_id}?version=1.0.0
 POST /api/evaluations/run
 GET  /api/evaluations/runs
 GET  /api/evaluations/runs/{run_id}
+GET  /api/evaluations/latest
 ```
 
-The current offline scoring configuration is deterministic:
+Run the reproducible evaluator with:
 
-- **Retrieval relevance**: token overlap between reference context and the
-  retrieved chunk text. It measures lexical coverage, not semantic relevance.
+```powershell
+.\.venv\Scripts\python.exe -m backend.run_eval `
+  --dataset data\evaluation\dataset.json `
+  --config config\rag_quality.json `
+  --no-provider `
+  --report data\evaluation\latest_report.json
+```
+
+`--no-provider` is the ordinary CI mode. It writes a report with explicit
+`unavailable` metric values when Gemini credentials are absent; it never
+converts missing measurements into zero. With enabled thresholds, unavailable
+required metrics return a non-zero exit code. With the checked-in disabled
+threshold configuration, the command exits successfully but reports an
+`unavailable`/`not_configured` evaluation rather than claiming quality. The
+dataset-only quality-gate command reports `NOT EVALUATED` when no metrics are
+provided and no thresholds are enabled.
+
+The current deterministic scoring configuration is:
+
+- **Retrieval relevance**: the mean of reference-context token F1 and an exact
+  expected-source hit. It measures explainable lexical/factual coverage, not
+  semantic relevance.
 - **Faithfulness**: each generated sentence is considered supported when at
-  least half of its normalized tokens occur in retrieved context. Unsupported
+  least half of its token F1 is supported by retrieved context. Unsupported
   sentences are returned separately. This is not an entailment model.
-- **Answer correctness**: average of expected-answer token coverage in the
-  generated answer and reference context. It is not a human or LLM judgment.
+- **Answer correctness**: expected-answer token F1 in the generated answer.
+  It measures deterministic fact-token coverage and is not a human or LLM
+  judgment.
 - **Citation accuracy**: validates that the expected source appears among the
   retrieved source metadata. It separately reports missing, invalid, and
   unsupported citation categories where applicable.
 
-Scores are nullable when required inputs are unavailable. Failed cases are
-persisted with their error type and message; they are not silently skipped.
+Scores are nullable when required inputs or provider data are unavailable.
+Unavailable cases are persisted explicitly with status `unavailable`; failed
+cases retain their error type and message. Neither state is silently converted
+to a successful score.
 
 ## GitHub Actions quality gate
 
 The workflow at `.github/workflows/ragops-ci.yml` runs on pushes and pull
 requests targeting `main`, plus manual dispatch. It installs dependencies,
-validates the dataset, runs the offline pytest suite, and builds the frontend.
+validates the dataset and threshold configuration, runs the provider-free
+evaluation report, runs the offline pytest suite, and builds the frontend.
 It does not call Gemini or depend on local Chroma/SQLite data.
 
 CI sets `RAGOPS_DATA_DIR`, `RAGOPS_UPLOAD_DIR`, `RAGOPS_CHROMA_PERSIST_DIR`,
